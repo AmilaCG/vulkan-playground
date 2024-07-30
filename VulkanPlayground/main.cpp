@@ -1,10 +1,19 @@
+#include <iostream>
+
 #include "Renderer/RenderBackend.h"
 
 int main()
 {
-    RenderBackend renderBackend;
+    try
+    {
+        RenderBackend renderBackend;
+        renderBackend.Init();
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << e.what() << std::endl;
+        return EXIT_FAILURE;
+    }
 
-    renderBackend.Init();
-
-    return 0;
+    return EXIT_SUCCESS;
 }
