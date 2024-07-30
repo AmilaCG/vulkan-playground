@@ -23,7 +23,7 @@ struct GPUInfo_t
     std::vector<VkExtensionProperties>   extensionProps;
 };
 
-struct vulkanContext_t
+struct VulkanContext_t
 {
     vertCacheHandle_t           jointCacheHandle;
 
@@ -105,6 +105,7 @@ private:
 private:
     GLFWwindow*                     m_window;
     VkInstance                      m_instance;
+    VulkanContext_t                 m_vkContext;
     bool                            m_enableValidation;
 
     std::vector<const char*>        m_instanceExtensions;

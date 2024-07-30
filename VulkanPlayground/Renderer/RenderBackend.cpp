@@ -26,7 +26,11 @@ static const char * g_validationLayers[ g_numValidationLayers ] = {
     "VK_LAYER_KHRONOS_validation"
 };
 
-RenderBackend::RenderBackend() : m_window(nullptr), m_instance(nullptr), m_enableValidation(true)
+RenderBackend::RenderBackend() :
+m_window(nullptr),
+m_instance(nullptr),
+m_vkContext({}),
+m_enableValidation(true)
 {
 }
 
@@ -124,6 +128,9 @@ void RenderBackend::Init()
 
 void RenderBackend::Shutdown()
 {
+    // Destroy the Instance
+    vkDestroyInstance(m_instance, nullptr);
+
     glfwDestroyWindow(m_window);
     glfwTerminate();
 }
