@@ -7,7 +7,9 @@ project(VulkanPlayground)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(VulkanPlayground main.cpp)
+add_executable(VulkanPlayground
+        main.cpp
+        Renderer/RenderBackend.cpp)
 
 find_package(Vulkan REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
