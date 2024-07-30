@@ -147,8 +147,6 @@ void RenderBackend::CreateInstance()
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
 
-    const bool enableLayers = m_enableValidation;
-
     m_instanceExtensions.clear();
     m_deviceExtensions.clear();
     m_validationLayers.clear();
@@ -158,7 +156,13 @@ void RenderBackend::CreateInstance()
         m_deviceExtensions.emplace_back(extension);
     }
 
-    if (enableLayers)
+#ifdef NDEBUG
+    m_enableValidation = false;
+#else
+    m_enableValidation = true;
+#endif
+
+    if (m_enableValidation)
     {
         for (const auto& extension : g_debugInstanceExtensions)
         {
