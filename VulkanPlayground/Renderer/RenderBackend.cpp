@@ -208,6 +208,7 @@ void RenderBackend::CreateSurface()
 
 void RenderBackend::SelectSuitablePhysicalDevice()
 {
+    uint32_t numDevices = 0;
 }
 
 void RenderBackend::CreateLogicalDeviceAndQueues()
@@ -252,7 +253,7 @@ void RenderBackend::CreateFrameBuffers()
 
 void RenderBackend::ValidateValidationLayers()
 {
-    uint32 instanceLayerCount = 0;
+    uint32_t instanceLayerCount = 0;
     vkEnumerateInstanceLayerProperties(&instanceLayerCount, nullptr);
 
     std::vector<VkLayerProperties> instanceLayers;

@@ -14,7 +14,7 @@
 
 // Everything that is needed by the backend needs to be double buffered to allow it to run in
 // parallel on a dual cpu machine
-static constexpr uint32 NUM_FRAME_DATA = 2;
+static constexpr uint32_t NUM_FRAME_DATA = 2;
 
 struct GPUInfo_t
 {
