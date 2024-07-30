@@ -49,14 +49,14 @@ class RenderBackend
 {
 public:
     RenderBackend();
-
     ~RenderBackend();
 
-    bool WindowInit();
-
     void Init();
-
     void Shutdown();
+
+private:
+    // GLFW window init
+    bool WindowInit();
 
     // Input and sound systems need to be tied to the new window
     void SysInitInput();
@@ -100,7 +100,6 @@ public:
     // Create Frame Buffers
     void CreateFrameBuffers();
 
-private:
     static void ValidateValidationLayers();
 
 private:
