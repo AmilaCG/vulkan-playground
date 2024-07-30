@@ -120,12 +120,7 @@ bool RenderBackend::WindowInit()
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    m_window = glfwCreateWindow(800, 600, "Vulkan window", nullptr, nullptr);
-
-    uint32_t extensionCount = 0;
-    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-
-    std::cout << extensionCount << " extensions supported\n";
+    m_window = glfwCreateWindow(1280, 720, "Vulkan Playground", nullptr, nullptr);
 
     return m_window != nullptr;
 }
@@ -209,6 +204,102 @@ void RenderBackend::CreateSurface()
 void RenderBackend::SelectSuitablePhysicalDevice()
 {
     uint32_t numDevices = 0;
+    vkEnumeratePhysicalDevices(m_instance, &numDevices, nullptr);
+    if (numDevices == 0)
+    {
+        throw std::runtime_error("vkEnumeratePhysicalDevices returned zero devices.\n");
+    }
+
+    std::vector<VkPhysicalDevice> devices;
+    devices.resize(numDevices);
+    if (vkEnumeratePhysicalDevices(m_instance, &numDevices, devices.data()) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to fetch devices!\n");
+    }
+
+    std::vector<GPUInfo_t> gpus;
+    gpus.resize(numDevices);
+
+    for (uint32_t i = 0; i < numDevices; i++)
+    {
+        GPUInfo_t& gpu = gpus[i];
+        gpu.device = devices[i];
+
+        {
+            // Get queues from the device
+            uint32_t numQueues = 0;
+            vkGetPhysicalDeviceQueueFamilyProperties(gpu.device, &numQueues, nullptr);
+            if (numQueues == 0)
+            {
+                throw std::runtime_error("vkGetPhysicalDeviceQueueFamilyProperties returned zero queues.\n");
+            }
+
+            gpu.queueFamilyProps.resize(numQueues);
+            vkGetPhysicalDeviceQueueFamilyProperties(gpu.device, &numQueues, gpu.queueFamilyProps.data());
+            if (numQueues == 0)
+            {
+                throw std::runtime_error("vkGetPhysicalDeviceQueueFamilyProperties returned zero queues.\n");
+            }
+        }
+
+        {
+            // Get extensions supported by the device
+            uint32_t numExtensions;
+            vkEnumerateDeviceExtensionProperties(gpu.device, nullptr, &numExtensions, nullptr);
+            if (numExtensions == 0)
+            {
+                throw std::runtime_error("vkEnumerateDeviceExtensionProperties returned zero extensions.\n");
+            }
+
+            gpu.extensionProps.resize(numExtensions);
+            vkEnumerateDeviceExtensionProperties(gpu.device, nullptr, &numExtensions, gpu.extensionProps.data());
+            if (numExtensions == 0)
+            {
+                throw std::runtime_error("vkEnumerateDeviceExtensionProperties returned zero extensions.\n");
+            }
+        }
+
+        // Surface capabilities basically describes what kind of image you can render to the user
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu.device, m_surface, &gpu.surfaceCaps);
+
+        {
+            // Get the supported surface formats. This includes image format and color space.
+            uint32_t numFormats;
+            vkGetPhysicalDeviceSurfaceFormatsKHR(gpu.device, m_surface, &numFormats, nullptr);
+            if (numFormats == 0)
+            {
+                throw std::runtime_error("vkGetPhysicalDeviceSurfaceFormatsKHR returned zero formats.\n");
+            }
+
+            gpu.surfaceFormats.resize(numFormats);
+            vkGetPhysicalDeviceSurfaceFormatsKHR(gpu.device, m_surface, &numFormats, gpu.surfaceFormats.data());
+            if (numFormats == 0)
+            {
+                throw std::runtime_error("vkGetPhysicalDeviceSurfaceFormatsKHR returned zero formats.\n");
+            }
+        }
+
+        {
+            // Get supported presentation modes
+            uint32_t numPresentModes;
+            vkGetPhysicalDeviceSurfacePresentModesKHR(gpu.device, m_surface, &numPresentModes, nullptr);
+            if (numPresentModes == 0)
+            {
+                throw std::runtime_error("vkGetPhysicalDeviceSurfacePresentModesKHR returned zero present modes.\n");
+            }
+
+            gpu.presentModes.resize(numPresentModes);
+            vkGetPhysicalDeviceSurfacePresentModesKHR(gpu.device, m_surface, &numPresentModes, gpu.presentModes.data());
+            if (numPresentModes == 0)
+            {
+                throw std::runtime_error("vkGetPhysicalDeviceSurfacePresentModesKHR returned zero present modes.\n");
+            }
+        }
+
+        vkGetPhysicalDeviceMemoryProperties(gpu.device, &gpu.memProps);
+        vkGetPhysicalDeviceProperties(gpu.device, &gpu.props);
+        vkGetPhysicalDeviceFeatures(gpu.device, &gpu.features);
+    }
 }
 
 void RenderBackend::CreateLogicalDeviceAndQueues()
