@@ -1,55 +1,33 @@
 #include "RenderBackend.h"
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/vec4.hpp>
-#include <glm/mat4x4.hpp>
-
 #include <iostream>
 #include <cstring>
 
 static constexpr int g_numDebugInstanceExtensions = 1;
-static const char * g_debugInstanceExtensions[ g_numDebugInstanceExtensions ] = {
+static const char* g_debugInstanceExtensions[g_numDebugInstanceExtensions] = {
     VK_EXT_DEBUG_REPORT_EXTENSION_NAME
 };
 
 static constexpr int g_numDeviceExtensions = 1;
-static const char * g_deviceExtensions[ g_numDeviceExtensions ] = {
+static const char* g_deviceExtensions[g_numDeviceExtensions] = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
 static constexpr int g_numValidationLayers = 1;
-static const char * g_validationLayers[ g_numValidationLayers ] = {
+static const char* g_validationLayers[g_numValidationLayers] = {
     "VK_LAYER_KHRONOS_validation"
 };
 
 RenderBackend::RenderBackend() :
 m_window(nullptr),
-m_instance(nullptr),
+m_instance(),
+m_surface(),
 m_vkContext({}),
 m_enableValidation(true)
 {
 }
 
 RenderBackend::~RenderBackend() = default;
-
-bool RenderBackend::WindowInit()
-{
-    glfwInit();
-
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    m_window = glfwCreateWindow(800, 600, "Vulkan window", nullptr, nullptr);
-
-    uint32_t extensionCount = 0;
-    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-
-    std::cout << extensionCount << " extensions supported\n";
-
-    return m_window != nullptr;
-}
 
 void RenderBackend::Init()
 {
@@ -128,11 +106,28 @@ void RenderBackend::Init()
 
 void RenderBackend::Shutdown()
 {
+    // Destroy window surface
+    vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
     // Destroy the Instance
     vkDestroyInstance(m_instance, nullptr);
 
     glfwDestroyWindow(m_window);
     glfwTerminate();
+}
+
+bool RenderBackend::WindowInit()
+{
+    glfwInit();
+
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    m_window = glfwCreateWindow(800, 600, "Vulkan window", nullptr, nullptr);
+
+    uint32_t extensionCount = 0;
+    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+
+    std::cout << extensionCount << " extensions supported\n";
+
+    return m_window != nullptr;
 }
 
 void RenderBackend::SysInitInput()
@@ -194,12 +189,21 @@ void RenderBackend::CreateInstance()
 
     if (vkCreateInstance(&createInfo, nullptr, &m_instance) != VK_SUCCESS)
     {
-        throw std::runtime_error("Failed to create VK instance!");
+        throw std::runtime_error("Failed to create VK instance!\n");
     }
 }
 
 void RenderBackend::CreateSurface()
 {
+    VkWin32SurfaceCreateInfoKHR createInfo {};
+    createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    createInfo.hwnd = glfwGetWin32Window(m_window);
+    createInfo.hinstance = GetModuleHandle(nullptr);
+
+    if (vkCreateWin32SurfaceKHR(m_instance, &createInfo, nullptr, &m_surface) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create window surface!\n");
+    }
 }
 
 void RenderBackend::SelectSuitablePhysicalDevice()
