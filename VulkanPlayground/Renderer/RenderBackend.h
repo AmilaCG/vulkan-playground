@@ -107,12 +107,14 @@ private:
     void CreateFrameBuffers();
 
     static void ValidateValidationLayers();
+    static bool CheckPhysicalDeviceExtensionSupport(GPUInfo_t& gpu, std::vector<const char*>& requiredExt);
 
 private:
     GLFWwindow*                     m_window;
     VkInstance                      m_instance;
     VkSurfaceKHR                    m_surface;
-    VulkanContext_t                 m_vkContext;
+    VulkanContext_t                 m_vkContext{};
+    VkPhysicalDevice                m_physicalDevice;
     bool                            m_enableValidation;
 
     std::vector<const char*>        m_instanceExtensions;

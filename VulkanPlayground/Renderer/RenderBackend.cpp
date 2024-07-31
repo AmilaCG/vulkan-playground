@@ -3,6 +3,9 @@
 #include <iostream>
 #include <cstring>
 
+constexpr uint32_t SCR_WIDTH = 1280;
+constexpr uint32_t SCR_HEIGHT = 720;
+
 static constexpr int g_numDebugInstanceExtensions = 1;
 static const char* g_debugInstanceExtensions[g_numDebugInstanceExtensions] = {
     VK_EXT_DEBUG_REPORT_EXTENSION_NAME
@@ -22,7 +25,7 @@ RenderBackend::RenderBackend() :
 m_window(nullptr),
 m_instance(),
 m_surface(),
-m_vkContext({}),
+m_physicalDevice(),
 m_enableValidation(true)
 {
 }
@@ -120,7 +123,7 @@ bool RenderBackend::WindowInit()
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    m_window = glfwCreateWindow(1280, 720, "Vulkan Playground", nullptr, nullptr);
+    m_window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Vulkan Playground", nullptr, nullptr);
 
     return m_window != nullptr;
 }
@@ -136,7 +139,7 @@ void RenderBackend::CreateInstance()
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = "Vulkan Playground";
     appInfo.applicationVersion = 1;
-    appInfo.pEngineName = "Lumina";
+    appInfo.pEngineName = "Playground";
     appInfo.engineVersion = 1;
     appInfo.apiVersion = VK_MAKE_VERSION(1, 0, 0);
 
@@ -300,6 +303,80 @@ void RenderBackend::SelectSuitablePhysicalDevice()
         vkGetPhysicalDeviceProperties(gpu.device, &gpu.props);
         vkGetPhysicalDeviceFeatures(gpu.device, &gpu.features);
     }
+
+    for (GPUInfo_t& gpu : gpus)
+    {
+        int graphicsIdx = -1;
+        int presentIdx = -1;
+
+        // Remember when we created our instance we got all those device extensions?
+        // Now we need to make sure our physical device supports them.
+        if (!CheckPhysicalDeviceExtensionSupport(gpu, m_deviceExtensions))
+        {
+            continue;
+        }
+
+        if (gpu.surfaceFormats.empty())
+        {
+            continue;
+        }
+
+        if (gpu.presentModes.empty())
+        {
+            continue;
+        }
+
+        // Loop through the queue family properties looking for both a graphics
+        // and a present queue.
+
+        // Find graphics queue family
+        for (int i = 0; i < gpu.queueFamilyProps.size(); i++)
+        {
+            VkQueueFamilyProperties& props = gpu.queueFamilyProps[i];
+
+            if (props.queueCount == 0)
+            {
+                continue;
+            }
+
+            if (props.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            {
+                graphicsIdx = i;
+                break;
+            }
+        }
+
+        // Find present queue family
+        for (int i = 0; i < gpu.queueFamilyProps.size(); i++)
+        {
+            VkQueueFamilyProperties& props = gpu.queueFamilyProps[i];
+
+            if (props.queueCount == 0)
+            {
+                continue;
+            }
+
+            VkBool32 supportPresentation = VK_FALSE;
+            vkGetPhysicalDeviceSurfaceSupportKHR(gpu.device, i, m_surface, &supportPresentation);
+            if (supportPresentation)
+            {
+                presentIdx = i;
+                break;
+            }
+        }
+
+        // Did we find a device supporting both graphics and present
+        if (graphicsIdx >= 0 && presentIdx >= 0)
+        {
+            m_vkContext.graphicsFamilyIdx = graphicsIdx;
+            m_vkContext.presentFamilyIdx = presentIdx;
+            m_physicalDevice = gpu.device;
+            m_vkContext.gpu = gpu;
+            std::cout << "Selected device: " << gpu.props.deviceName << std::endl;
+
+            return;
+        }
+    }
 }
 
 void RenderBackend::CreateLogicalDeviceAndQueues()
@@ -367,4 +444,24 @@ void RenderBackend::ValidateValidationLayers()
             printf("Cannot find validation layer: %s.\n", validationLayer);
         }
     }
+}
+
+bool RenderBackend::CheckPhysicalDeviceExtensionSupport(GPUInfo_t& gpu, std::vector<const char*>& requiredExt)
+{
+    const int required = requiredExt.size();
+    int available = 0;
+
+    for (const auto& requiredExtension : requiredExt)
+    {
+        for (const auto& extensionProp : gpu.extensionProps)
+        {
+            if (strcmp(requiredExtension, extensionProp.extensionName) == 0)
+            {
+                available++;
+                break;
+            }
+        }
+    }
+
+    return available == required;
 }
