@@ -30,7 +30,9 @@ m_physicalDevice(),
 m_enableValidation(true),
 m_acquireSemaphores(NUM_FRAME_DATA),
 m_renderCompleteSemaphores(NUM_FRAME_DATA),
-m_commandPool()
+m_commandPool(),
+m_commandBuffers(NUM_FRAME_DATA),
+m_commandBufferFences(NUM_FRAME_DATA)
 {
 #ifdef NDEBUG
     m_enableValidation = false;
@@ -73,7 +75,7 @@ void RenderBackend::Init()
     CreateCommandPool();
 
     // Create Command Buffer
-    CreateCommandBuffer();
+    CreateCommandBuffers();
 
     // Setup the allocator
 #if defined( ID_USE_AMD_ALLOCATOR )
@@ -118,6 +120,14 @@ void RenderBackend::Init()
 
 void RenderBackend::Shutdown()
 {
+    // Destroy fences
+    for (const VkFence& fence : m_commandBufferFences)
+    {
+        vkDestroyFence(m_vkContext.device, fence, nullptr);
+    }
+
+    // TODO: Is it necessary to release command buffers? Validation layer doesn't complain
+
     vkDestroyCommandPool(m_vkContext.device, m_commandPool, nullptr);
 
     // Destroy semaphores
@@ -451,10 +461,10 @@ void RenderBackend::CreateLogicalDeviceAndQueues()
 
 void RenderBackend::CreateSemaphores()
 {
-    // Synchronize access to rendering and presenting images (double buffered images)
     VkSemaphoreCreateInfo semaphoreCreateInfo{};
     semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
+    // Synchronize access to rendering and presenting images (double buffered images)
     for (int i = 0; i < NUM_FRAME_DATA; i++)
     {
         vkCreateSemaphore(m_vkContext.device, &semaphoreCreateInfo, nullptr, &m_acquireSemaphores[i]);
@@ -487,8 +497,25 @@ void RenderBackend::CreateCommandPool()
     }
 }
 
-void RenderBackend::CreateCommandBuffer()
+void RenderBackend::CreateCommandBuffers()
 {
+    VkCommandBufferAllocateInfo commandBufferAllocateInfo{};
+    commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    commandBufferAllocateInfo.commandPool = m_commandPool;
+    commandBufferAllocateInfo.commandBufferCount = NUM_FRAME_DATA;
+
+    // Allocating multiple command buffers at once
+    vkAllocateCommandBuffers(m_vkContext.device, &commandBufferAllocateInfo, m_commandBuffers.data());
+
+    VkFenceCreateInfo fenceCreateInfo{};
+    fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+
+    // Create fences that we can use to wait for a given command buffer to be done on the GPU
+    for (int i = 0; i < NUM_FRAME_DATA; i++)
+    {
+        vkCreateFence(m_vkContext.device, &fenceCreateInfo, nullptr, &m_commandBufferFences[i]);
+    }
 }
 
 void RenderBackend::CreateSwapChain()

@@ -89,7 +89,7 @@ private:
     void CreateCommandPool();
 
     // Create Command Buffer
-    void CreateCommandBuffer();
+    void CreateCommandBuffers();
 
     // Create Swap Chain
     void CreateSwapChain();
@@ -125,6 +125,8 @@ private:
     std::vector<VkSemaphore>        m_renderCompleteSemaphores;
 
     VkCommandPool                   m_commandPool;
+    std::vector<VkCommandBuffer>    m_commandBuffers;
+    std::vector<VkFence>            m_commandBufferFences;
 };
 
 #endif
