@@ -227,15 +227,13 @@ void RenderBackend::SelectSuitablePhysicalDevice()
         throw std::runtime_error("vkEnumeratePhysicalDevices returned zero devices.\n");
     }
 
-    std::vector<VkPhysicalDevice> devices;
-    devices.resize(numDevices);
+    std::vector<VkPhysicalDevice> devices(numDevices);
     if (vkEnumeratePhysicalDevices(m_instance, &numDevices, devices.data()) != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to fetch devices!\n");
     }
 
-    std::vector<GPUInfo_t> gpus;
-    gpus.resize(numDevices);
+    std::vector<GPUInfo_t> gpus(numDevices);
 
     for (uint32_t i = 0; i < numDevices; i++)
     {
@@ -499,8 +497,7 @@ void RenderBackend::ValidateValidationLayers()
     uint32_t instanceLayerCount = 0;
     vkEnumerateInstanceLayerProperties(&instanceLayerCount, nullptr);
 
-    std::vector<VkLayerProperties> instanceLayers;
-    instanceLayers.resize(instanceLayerCount);
+    std::vector<VkLayerProperties> instanceLayers(instanceLayerCount);
     vkEnumerateInstanceLayerProperties(&instanceLayerCount, instanceLayers.data());
 
     bool found = false;
