@@ -123,6 +123,8 @@ private:
 
     std::vector<VkSemaphore>        m_acquireSemaphores;
     std::vector<VkSemaphore>        m_renderCompleteSemaphores;
+
+    VkCommandPool                   m_commandPool;
 };
 
 #endif

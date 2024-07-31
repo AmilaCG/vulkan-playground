@@ -29,7 +29,8 @@ m_surface(),
 m_physicalDevice(),
 m_enableValidation(true),
 m_acquireSemaphores(NUM_FRAME_DATA),
-m_renderCompleteSemaphores(NUM_FRAME_DATA)
+m_renderCompleteSemaphores(NUM_FRAME_DATA),
+m_commandPool()
 {
 #ifdef NDEBUG
     m_enableValidation = false;
@@ -117,6 +118,8 @@ void RenderBackend::Init()
 
 void RenderBackend::Shutdown()
 {
+    vkDestroyCommandPool(m_vkContext.device, m_commandPool, nullptr);
+
     // Destroy semaphores
     for (const VkSemaphore& semaphore : m_acquireSemaphores)
     {
@@ -131,7 +134,6 @@ void RenderBackend::Shutdown()
     vkDestroyDevice(m_vkContext.device, nullptr);
     // Destroy window surface
     vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
-    // Destroy the Instance
     vkDestroyInstance(m_instance, nullptr);
 
     glfwDestroyWindow(m_window);
@@ -466,6 +468,23 @@ void RenderBackend::CreateQueryPool()
 
 void RenderBackend::CreateCommandPool()
 {
+    // Because command buffers can be very flexible, we don't want to be
+    // doing a lot of allocation while we're trying to render.
+    // For this reason we create a pool to hold allocated command buffers.
+    VkCommandPoolCreateInfo commandPoolCreateInfo{};
+    commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+
+    // This allows the command buffer to be implicitly reset when vkBeginCommandBuffer is called.
+    // You can also explicitly call vkResetCommandBuffer.
+    commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+
+    // We'll be building command buffers to send to the graphics queue
+    commandPoolCreateInfo.queueFamilyIndex = m_vkContext.graphicsFamilyIdx;
+
+    if (vkCreateCommandPool(m_vkContext.device, &commandPoolCreateInfo, nullptr, &m_commandPool) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create the command pool!\n");
+    }
 }
 
 void RenderBackend::CreateCommandBuffer()
