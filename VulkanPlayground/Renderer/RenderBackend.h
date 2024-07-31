@@ -120,6 +120,9 @@ private:
     std::vector<const char*>        m_instanceExtensions;
     std::vector<const char*>        m_deviceExtensions;
     std::vector<const char*>        m_validationLayers;
+
+    std::vector<VkSemaphore>        m_acquireSemaphores;
+    std::vector<VkSemaphore>        m_renderCompleteSemaphores;
 };
 
 #endif

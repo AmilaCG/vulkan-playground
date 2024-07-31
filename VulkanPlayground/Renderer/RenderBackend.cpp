@@ -27,7 +27,9 @@ m_window(nullptr),
 m_instance(),
 m_surface(),
 m_physicalDevice(),
-m_enableValidation(true)
+m_enableValidation(true),
+m_acquireSemaphores(NUM_FRAME_DATA),
+m_renderCompleteSemaphores(NUM_FRAME_DATA)
 {
 #ifdef NDEBUG
     m_enableValidation = false;
@@ -115,6 +117,16 @@ void RenderBackend::Init()
 
 void RenderBackend::Shutdown()
 {
+    // Destroy semaphores
+    for (const VkSemaphore& semaphore : m_acquireSemaphores)
+    {
+        vkDestroySemaphore(m_vkContext.device, semaphore, nullptr);
+    }
+    for (const VkSemaphore& semaphore : m_renderCompleteSemaphores)
+    {
+        vkDestroySemaphore(m_vkContext.device, semaphore, nullptr);
+    }
+
     // Destroy logical device
     vkDestroyDevice(m_vkContext.device, nullptr);
     // Destroy window surface
@@ -439,6 +451,15 @@ void RenderBackend::CreateLogicalDeviceAndQueues()
 
 void RenderBackend::CreateSemaphores()
 {
+    // Synchronize access to rendering and presenting images (double buffered images)
+    VkSemaphoreCreateInfo semaphoreCreateInfo{};
+    semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    for (int i = 0; i < NUM_FRAME_DATA; i++)
+    {
+        vkCreateSemaphore(m_vkContext.device, &semaphoreCreateInfo, nullptr, &m_acquireSemaphores[i]);
+        vkCreateSemaphore(m_vkContext.device, &semaphoreCreateInfo, nullptr, &m_renderCompleteSemaphores[i]);
+    }
 }
 
 void RenderBackend::CreateQueryPool()
@@ -505,9 +526,9 @@ bool RenderBackend::CheckPhysicalDeviceExtensionSupport(GPUInfo_t& gpu, std::vec
     const int required = requiredExt.size();
     int available = 0;
 
-    for (const auto& requiredExtension : requiredExt)
+    for (const char* requiredExtension : requiredExt)
     {
-        for (const auto& extensionProp : gpu.extensionProps)
+        for (const VkExtensionProperties& extensionProp : gpu.extensionProps)
         {
             if (strcmp(requiredExtension, extensionProp.extensionName) == 0)
             {
