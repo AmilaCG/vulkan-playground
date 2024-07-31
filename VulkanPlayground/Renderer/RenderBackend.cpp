@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <cstring>
+#include <unordered_set>
 
 constexpr uint32_t SCR_WIDTH = 1280;
 constexpr uint32_t SCR_HEIGHT = 720;
@@ -28,6 +29,11 @@ m_surface(),
 m_physicalDevice(),
 m_enableValidation(true)
 {
+#ifdef NDEBUG
+    m_enableValidation = false;
+#else
+    m_enableValidation = true;
+#endif
 }
 
 RenderBackend::~RenderBackend() = default;
@@ -109,6 +115,8 @@ void RenderBackend::Init()
 
 void RenderBackend::Shutdown()
 {
+    // Destroy logical device
+    vkDestroyDevice(m_vkContext.device, nullptr);
     // Destroy window surface
     vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
     // Destroy the Instance
@@ -155,12 +163,6 @@ void RenderBackend::CreateInstance()
     {
         m_deviceExtensions.emplace_back(extension);
     }
-
-#ifdef NDEBUG
-    m_enableValidation = false;
-#else
-    m_enableValidation = true;
-#endif
 
     if (m_enableValidation)
     {
@@ -381,6 +383,58 @@ void RenderBackend::SelectSuitablePhysicalDevice()
 
 void RenderBackend::CreateLogicalDeviceAndQueues()
 {
+    // Logical device is simply an interface to the physical device. It exposes the
+    // underlying API of interacting with the device.
+
+    // Add each family index to a list. Don't do duplicates.
+    std::unordered_set<int> uniqueIdx;
+    uniqueIdx.insert(m_vkContext.graphicsFamilyIdx);
+    uniqueIdx.insert(m_vkContext.presentFamilyIdx);
+
+    std::vector<VkDeviceQueueCreateInfo> devQInfo;
+
+    const float priority = 1.0f;
+    for (const int idx : uniqueIdx)
+    {
+        VkDeviceQueueCreateInfo qInfo{};
+        qInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        qInfo.queueFamilyIndex = idx;
+        qInfo.queueCount = 1;
+        qInfo.pQueuePriorities = &priority;
+
+        devQInfo.emplace_back(qInfo);
+    }
+
+    // If you try to make an API call down the road which requires something be enabled,
+    // you'll more than likely get a validation message telling you what to enable.
+    // TODO: Come back and enable required features
+    VkPhysicalDeviceFeatures deviceFeatures{};
+
+    VkDeviceCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    info.queueCreateInfoCount = devQInfo.size();
+    info.pQueueCreateInfos = devQInfo.data();
+    info.pEnabledFeatures = &deviceFeatures;
+    info.enabledExtensionCount = m_deviceExtensions.size();
+    info.ppEnabledExtensionNames = m_deviceExtensions.data();
+
+    if (m_enableValidation)
+    {
+        info.enabledLayerCount = m_validationLayers.size();
+        info.ppEnabledLayerNames = m_validationLayers.data();
+    }
+    else
+    {
+        info.enabledLayerCount = 0;
+    }
+
+    if (vkCreateDevice(m_physicalDevice, &info, nullptr, &m_vkContext.device) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create the logical device!\n");
+    }
+
+    vkGetDeviceQueue(m_vkContext.device, m_vkContext.graphicsFamilyIdx, 0, &m_vkContext.graphicsQueue);
+    vkGetDeviceQueue(m_vkContext.device, m_vkContext.presentFamilyIdx, 0, &m_vkContext.presentQueue);
 }
 
 void RenderBackend::CreateSemaphores()
