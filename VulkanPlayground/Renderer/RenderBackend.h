@@ -106,13 +106,18 @@ private:
     // Create Frame Buffers
     void CreateFrameBuffers();
 
+private:
     static void ValidateValidationLayers();
     static bool CheckPhysicalDeviceExtensionSupport(GPUInfo_t& gpu, std::vector<const char*>& requiredExt);
+    static VkSurfaceFormatKHR ChooseSurfaceFormat(std::vector<VkSurfaceFormatKHR>& formats);
+    static VkPresentModeKHR ChoosePresentMode(std::vector<VkPresentModeKHR>& modes);
+    VkExtent2D ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& caps);
 
 private:
     GLFWwindow*                     m_window;
     VkInstance                      m_instance;
     VkSurfaceKHR                    m_surface;
+    VkPresentModeKHR                m_presentMode;
     VulkanContext_t                 m_vkContext{};
     VkPhysicalDevice                m_physicalDevice;
     bool                            m_enableValidation;
@@ -127,6 +132,11 @@ private:
     VkCommandPool                   m_commandPool;
     std::vector<VkCommandBuffer>    m_commandBuffers;
     std::vector<VkFence>            m_commandBufferFences;
+    VkSwapchainKHR                  m_swapchain;
+    VkFormat                        m_swapchainFormat;
+    VkExtent2D                      m_swapchainExtent;
+    std::vector<VkImage>            m_swapchainImages;
+    std::vector<VkImageView>        m_swapchainViews;
 };
 
 #endif

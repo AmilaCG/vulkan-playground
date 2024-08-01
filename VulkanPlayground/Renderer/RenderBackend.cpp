@@ -22,17 +22,22 @@ static const char* g_validationLayers[g_numValidationLayers] = {
     "VK_LAYER_KHRONOS_validation"
 };
 
-RenderBackend::RenderBackend() :
-m_window(nullptr),
-m_instance(),
-m_surface(),
-m_physicalDevice(),
-m_enableValidation(true),
-m_acquireSemaphores(NUM_FRAME_DATA),
-m_renderCompleteSemaphores(NUM_FRAME_DATA),
-m_commandPool(),
-m_commandBuffers(NUM_FRAME_DATA),
-m_commandBufferFences(NUM_FRAME_DATA)
+RenderBackend::RenderBackend() : m_window(nullptr),
+                                 m_instance(),
+                                 m_surface(),
+                                 m_presentMode(),
+                                 m_physicalDevice(),
+                                 m_enableValidation(true),
+                                 m_acquireSemaphores(NUM_FRAME_DATA),
+                                 m_renderCompleteSemaphores(NUM_FRAME_DATA),
+                                 m_commandPool(),
+                                 m_commandBuffers(NUM_FRAME_DATA),
+                                 m_commandBufferFences(NUM_FRAME_DATA),
+                                 m_swapchain(),
+                                 m_swapchainFormat(),
+                                 m_swapchainExtent(),
+                                 m_swapchainImages(NUM_FRAME_DATA),
+                                 m_swapchainViews(NUM_FRAME_DATA)
 {
 #ifdef NDEBUG
     m_enableValidation = false;
@@ -120,6 +125,12 @@ void RenderBackend::Init()
 
 void RenderBackend::Shutdown()
 {
+    for (uint32_t i = 0; i < NUM_FRAME_DATA; i++)
+    {
+        vkDestroyImageView(m_vkContext.device, m_swapchainViews[i], nullptr);
+    }
+    vkDestroySwapchainKHR(m_vkContext.device, m_swapchain, nullptr);
+
     // Destroy fences
     for (const VkFence& fence : m_commandBufferFences)
     {
@@ -520,6 +531,104 @@ void RenderBackend::CreateCommandBuffers()
 
 void RenderBackend::CreateSwapChain()
 {
+    GPUInfo_t& gpu = m_vkContext.gpu;
+
+    VkSurfaceFormatKHR surfaceFormat = ChooseSurfaceFormat(gpu.surfaceFormats);
+    const VkPresentModeKHR presentMode = ChoosePresentMode(gpu.presentModes);
+    const VkExtent2D extent = ChooseSurfaceExtent(gpu.surfaceCaps);
+
+    VkSwapchainCreateInfoKHR info{};
+    info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    info.surface = m_surface;
+    info.minImageCount = NUM_FRAME_DATA;
+    info.imageFormat = surfaceFormat.format;
+    info.imageColorSpace = surfaceFormat.colorSpace;
+    info.imageExtent = extent;
+    info.imageArrayLayers = 1;
+    // VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT - This is a color image I'm rendering into
+    // VK_IMAGE_USAGE_TRANSFER_SRC_BIT - I'll be copying this image somewhere (screenshot, postprocess)
+    info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
+    // If the graphics queue family and present family don't match
+    // then we need to create the swapchain with different information.
+    if (m_vkContext.graphicsFamilyIdx != m_vkContext.presentFamilyIdx)
+    {
+        const uint32_t indices[] = {
+            static_cast<uint32_t>(m_vkContext.graphicsFamilyIdx),
+            static_cast<uint32_t>(m_vkContext.presentFamilyIdx)
+        };
+
+        // There are only two sharing modes. This is the one to use if images are not exclusive to one queue.
+        info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        info.queueFamilyIndexCount = std::size(indices);
+        info.pQueueFamilyIndices = indices;
+    }
+    else
+    {
+        // If the indices are the same, then the queue can have exclusive access to the images.
+        info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    }
+
+    // Leave image as is
+    info.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+    info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    info.presentMode = presentMode;
+
+    // Is Vulkan allowed to discard operations outside of the renderable space?
+    info.clipped = VK_TRUE;
+
+    // Create swapchain
+    vkCreateSwapchainKHR(m_vkContext.device, &info, nullptr, &m_swapchain);
+
+    // Save off swapchain details
+    m_swapchainFormat = surfaceFormat.format;
+    m_presentMode = presentMode;
+    m_swapchainExtent = extent;
+
+    // Retrieve the swapchain images from the device.
+    // Note that VkImage is simply a handle like everything else.
+
+    uint32_t numImages = 0;
+    vkGetSwapchainImagesKHR(m_vkContext.device, m_swapchain, &numImages, nullptr);
+    if (numImages == 0)
+    {
+        throw std::runtime_error("vkGetSwapchainImagesKHR returned a zero image count.\n");
+    }
+    vkGetSwapchainImagesKHR(m_vkContext.device, m_swapchain, &numImages, m_swapchainImages.data());
+    if (numImages == 0)
+    {
+        throw std::runtime_error("vkGetSwapchainImagesKHR returned a zero image count.\n");
+    }
+
+    // Much like the logical device is an interface to the physical device,
+    // image views are interfaces to actual images.  Think of it as this.
+    // The image exists outside of you.  But the view is your personal view
+    // ( how you perceive ) the image.
+    for (uint32_t i = 0; i < NUM_FRAME_DATA; i++)
+    {
+        VkImageViewCreateInfo imageViewCreateInfo{};
+        imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        imageViewCreateInfo.image = m_swapchainImages[i];
+        imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        imageViewCreateInfo.format = m_swapchainFormat;
+
+        // We don't need to swizzle (swap around) any of the color channels
+        imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_R;
+        imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_G;
+        imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_B;
+        imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_A;
+
+        // The subresourceRange field describes what the image's purpose is and which part of
+        // the image should be accessed
+        imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+        imageViewCreateInfo.subresourceRange.levelCount = 1;
+        imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+        imageViewCreateInfo.subresourceRange.layerCount = 1;
+        imageViewCreateInfo.flags = 0;
+
+        vkCreateImageView(m_vkContext.device, &imageViewCreateInfo, nullptr, &m_swapchainViews[i]);
+    }
 }
 
 void RenderBackend::CreateRenderTargets()
@@ -582,4 +691,66 @@ bool RenderBackend::CheckPhysicalDeviceExtensionSupport(GPUInfo_t& gpu, std::vec
     }
 
     return available == required;
+}
+
+VkSurfaceFormatKHR RenderBackend::ChooseSurfaceFormat(std::vector<VkSurfaceFormatKHR>& formats)
+{
+    // If Vulkan returned an unknown format, then just force what we want
+    if (formats.size() == 1 && formats[0].format == VK_FORMAT_UNDEFINED)
+    {
+        VkSurfaceFormatKHR result;
+        result.format = VK_FORMAT_B8G8R8A8_UNORM;
+        result.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+        return result;
+    }
+
+    // Favor 32 bit rgba and srgb nonlinear colorspace
+    for (const VkSurfaceFormatKHR& fmt : formats)
+    {
+        if (fmt.format == VK_FORMAT_B8G8R8A8_UNORM && fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        {
+            return fmt;
+        }
+    }
+
+    // If all else fails, just return what's available
+    return formats[0];
+}
+
+VkPresentModeKHR RenderBackend::ChoosePresentMode(std::vector<VkPresentModeKHR>& modes)
+{
+    // Favor looking for mailbox mode
+    constexpr VkPresentModeKHR desiredMode = VK_PRESENT_MODE_MAILBOX_KHR;
+
+    for (const VkPresentModeKHR& mode : modes)
+    {
+        if (mode == desiredMode)
+        {
+            return desiredMode;
+        }
+    }
+
+    // If we couldn't find mailbox, then default to FIFO which is always available
+    return VK_PRESENT_MODE_FIFO_KHR;
+}
+
+VkExtent2D RenderBackend::ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& caps)
+{
+    VkExtent2D extent;
+
+    // The extent is typically the size of the window we created the surface from.
+    // However if Vulkan returns -1 then simply substitute the window size.
+    if ( caps.currentExtent.width == -1 )
+    {
+        int winWidth, winHeight;
+        glfwGetWindowSize(m_window, &winWidth, &winHeight);
+        extent.width = winWidth;
+        extent.height = winHeight;
+    }
+    else
+    {
+        extent = caps.currentExtent;
+    }
+
+    return extent;
 }
