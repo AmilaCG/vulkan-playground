@@ -22,6 +22,121 @@ static const char* g_validationLayers[g_numValidationLayers] = {
     "VK_LAYER_KHRONOS_validation"
 };
 
+static void ValidateValidationLayers()
+{
+    uint32_t instanceLayerCount = 0;
+    vkEnumerateInstanceLayerProperties(&instanceLayerCount, nullptr);
+
+    std::vector<VkLayerProperties> instanceLayers(instanceLayerCount);
+    vkEnumerateInstanceLayerProperties(&instanceLayerCount, instanceLayers.data());
+
+    bool found = false;
+    for (const auto& validationLayer : g_validationLayers)
+    {
+        for (const auto& instanceLayer : instanceLayers)
+        {
+            if (strcmp(validationLayer, instanceLayer.layerName) == 0)
+            {
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+        {
+            printf("Cannot find validation layer: %s.\n", validationLayer);
+        }
+    }
+}
+
+static bool CheckPhysicalDeviceExtensionSupport(GPUInfo_t& gpu, std::vector<const char*>& requiredExt)
+{
+    const int required = requiredExt.size();
+    int available = 0;
+
+    for (const char* requiredExtension : requiredExt)
+    {
+        for (const VkExtensionProperties& extensionProp : gpu.extensionProps)
+        {
+            if (strcmp(requiredExtension, extensionProp.extensionName) == 0)
+            {
+                available++;
+                break;
+            }
+        }
+    }
+
+    return available == required;
+}
+
+static VkSurfaceFormatKHR ChooseSurfaceFormat(std::vector<VkSurfaceFormatKHR>& formats)
+{
+    // If Vulkan returned an unknown format, then just force what we want
+    if (formats.size() == 1 && formats[0].format == VK_FORMAT_UNDEFINED)
+    {
+        VkSurfaceFormatKHR result;
+        result.format = VK_FORMAT_B8G8R8A8_UNORM;
+        result.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+        return result;
+    }
+
+    // Favor 32 bit rgba and srgb nonlinear colorspace
+    for (const VkSurfaceFormatKHR& fmt : formats)
+    {
+        if (fmt.format == VK_FORMAT_B8G8R8A8_UNORM && fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        {
+            return fmt;
+        }
+    }
+
+    // If all else fails, just return what's available
+    return formats[0];
+}
+
+static VkPresentModeKHR ChoosePresentMode(std::vector<VkPresentModeKHR>& modes)
+{
+    // Favor looking for mailbox mode
+    constexpr VkPresentModeKHR desiredMode = VK_PRESENT_MODE_MAILBOX_KHR;
+
+    for (const VkPresentModeKHR& mode : modes)
+    {
+        if (mode == desiredMode)
+        {
+            return desiredMode;
+        }
+    }
+
+    // If we couldn't find mailbox, then default to FIFO which is always available
+    return VK_PRESENT_MODE_FIFO_KHR;
+}
+
+static VkFormat ChooseSupportedFormat(
+    const VkPhysicalDevice& physicalDevice,
+    VkFormat* formats,
+    int numFormats,
+    const VkImageTiling& tiling,
+    const VkFormatFeatureFlags& features)
+{
+    // for ( int i = 0; i < numFormats; ++i )
+    for (const VkFormat& format : formats)
+    {
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
+
+        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
+        {
+            return format;
+        }
+
+        if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features)
+        {
+            return format;
+        }
+    }
+
+    throw std::runtime_error("Failed to find a supported format.\n");
+    return VK_FORMAT_UNDEFINED;
+}
+
 RenderBackend::RenderBackend() : m_window(nullptr),
                                  m_instance(),
                                  m_surface(),
@@ -633,6 +748,7 @@ void RenderBackend::CreateSwapChain()
 
 void RenderBackend::CreateRenderTargets()
 {
+    // TODO: Had to skip this. Not sure how to implement this.
 }
 
 void RenderBackend::CreateRenderPass()
@@ -645,93 +761,6 @@ void RenderBackend::CreatePipelineCache()
 
 void RenderBackend::CreateFrameBuffers()
 {
-}
-
-void RenderBackend::ValidateValidationLayers()
-{
-    uint32_t instanceLayerCount = 0;
-    vkEnumerateInstanceLayerProperties(&instanceLayerCount, nullptr);
-
-    std::vector<VkLayerProperties> instanceLayers(instanceLayerCount);
-    vkEnumerateInstanceLayerProperties(&instanceLayerCount, instanceLayers.data());
-
-    bool found = false;
-    for (const auto& validationLayer : g_validationLayers)
-    {
-        for (const auto& instanceLayer : instanceLayers)
-        {
-            if (strcmp(validationLayer, instanceLayer.layerName) == 0)
-            {
-                found = true;
-                break;
-            }
-        }
-        if (!found)
-        {
-            printf("Cannot find validation layer: %s.\n", validationLayer);
-        }
-    }
-}
-
-bool RenderBackend::CheckPhysicalDeviceExtensionSupport(GPUInfo_t& gpu, std::vector<const char*>& requiredExt)
-{
-    const int required = requiredExt.size();
-    int available = 0;
-
-    for (const char* requiredExtension : requiredExt)
-    {
-        for (const VkExtensionProperties& extensionProp : gpu.extensionProps)
-        {
-            if (strcmp(requiredExtension, extensionProp.extensionName) == 0)
-            {
-                available++;
-                break;
-            }
-        }
-    }
-
-    return available == required;
-}
-
-VkSurfaceFormatKHR RenderBackend::ChooseSurfaceFormat(std::vector<VkSurfaceFormatKHR>& formats)
-{
-    // If Vulkan returned an unknown format, then just force what we want
-    if (formats.size() == 1 && formats[0].format == VK_FORMAT_UNDEFINED)
-    {
-        VkSurfaceFormatKHR result;
-        result.format = VK_FORMAT_B8G8R8A8_UNORM;
-        result.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-        return result;
-    }
-
-    // Favor 32 bit rgba and srgb nonlinear colorspace
-    for (const VkSurfaceFormatKHR& fmt : formats)
-    {
-        if (fmt.format == VK_FORMAT_B8G8R8A8_UNORM && fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-        {
-            return fmt;
-        }
-    }
-
-    // If all else fails, just return what's available
-    return formats[0];
-}
-
-VkPresentModeKHR RenderBackend::ChoosePresentMode(std::vector<VkPresentModeKHR>& modes)
-{
-    // Favor looking for mailbox mode
-    constexpr VkPresentModeKHR desiredMode = VK_PRESENT_MODE_MAILBOX_KHR;
-
-    for (const VkPresentModeKHR& mode : modes)
-    {
-        if (mode == desiredMode)
-        {
-            return desiredMode;
-        }
-    }
-
-    // If we couldn't find mailbox, then default to FIFO which is always available
-    return VK_PRESENT_MODE_FIFO_KHR;
 }
 
 VkExtent2D RenderBackend::ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& caps)

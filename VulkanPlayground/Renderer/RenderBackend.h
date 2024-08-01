@@ -106,11 +106,6 @@ private:
     // Create Frame Buffers
     void CreateFrameBuffers();
 
-private:
-    static void ValidateValidationLayers();
-    static bool CheckPhysicalDeviceExtensionSupport(GPUInfo_t& gpu, std::vector<const char*>& requiredExt);
-    static VkSurfaceFormatKHR ChooseSurfaceFormat(std::vector<VkSurfaceFormatKHR>& formats);
-    static VkPresentModeKHR ChoosePresentMode(std::vector<VkPresentModeKHR>& modes);
     VkExtent2D ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& caps);
 
 private:
