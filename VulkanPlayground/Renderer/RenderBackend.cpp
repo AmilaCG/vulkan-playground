@@ -1,11 +1,15 @@
 #include "RenderBackend.h"
 
 #include <iostream>
+#include <fstream>
 #include <cstring>
 #include <unordered_set>
 
 constexpr uint32_t SCR_WIDTH = 1280;
 constexpr uint32_t SCR_HEIGHT = 720;
+
+constexpr std::string VERT_SHADER_PATH = "vert.spv";
+constexpr std::string FRAG_SHADER_PATH = "frag.spv";
 
 static constexpr int g_numDebugInstanceExtensions = 1;
 static const char* g_debugInstanceExtensions[g_numDebugInstanceExtensions] = {
@@ -137,6 +141,27 @@ static VkFormat ChooseSupportedFormat(
     return VK_FORMAT_UNDEFINED;
 }
 
+static void ReadShaderFile(const std::string& filename, std::vector<char>& buffer)
+{
+    std::ifstream file(filename, std::ios::ate | std::ios::binary);
+    if (!file.is_open())
+    {
+        std::cout << "Failed to open " << filename << std::endl;
+        throw std::runtime_error("Failed to open file");
+    }
+
+    // The above flag (std::ios::ate) will start reading the file from the end. The benifit of
+    // reading from the end is that we can use the read position to determine the file size.
+    size_t fileSize = static_cast<size_t>(file.tellg());
+
+    if (!buffer.empty()) { buffer.clear(); }
+    buffer.resize(fileSize);
+
+    file.seekg(0);
+    file.read(buffer.data(), fileSize);
+    file.close();
+}
+
 RenderBackend::RenderBackend() : m_window(nullptr),
                                  m_instance(),
                                  m_surface(),
@@ -227,6 +252,8 @@ void RenderBackend::Init()
 
     // Create Pipeline Cache
     CreatePipelineCache();
+
+    CreateGraphicsPipeline();
 
     // Create Frame Buffers
     CreateFrameBuffers();
@@ -761,7 +788,10 @@ void RenderBackend::CreatePipelineCache()
 
 void RenderBackend::CreateGraphicsPipeline()
 {
-
+    std::vector<char> vertShaderCode;
+    ReadShaderFile(VERT_SHADER_PATH, vertShaderCode);
+    std::vector<char> fragShaderCode;
+    ReadShaderFile(FRAG_SHADER_PATH, fragShaderCode);
 }
 
 void RenderBackend::CreateFrameBuffers()
