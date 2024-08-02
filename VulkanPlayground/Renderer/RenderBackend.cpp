@@ -116,9 +116,9 @@ static VkFormat ChooseSupportedFormat(
     const VkImageTiling& tiling,
     const VkFormatFeatureFlags& features)
 {
-    // for ( int i = 0; i < numFormats; ++i )
-    for (const VkFormat& format : formats)
+    for ( int i = 0; i < numFormats; ++i )
     {
+        const VkFormat& format = formats[i];
         VkFormatProperties props;
         vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
 
@@ -757,6 +757,11 @@ void RenderBackend::CreateRenderPass()
 
 void RenderBackend::CreatePipelineCache()
 {
+}
+
+void RenderBackend::CreateGraphicsPipeline()
+{
+
 }
 
 void RenderBackend::CreateFrameBuffers()

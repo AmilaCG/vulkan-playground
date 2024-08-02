@@ -19,3 +19,11 @@ target_link_libraries(VulkanPlayground PRIVATE
         Vulkan::Vulkan
         glfw
         glm::glm-header-only)
+
+if(WIN32)
+    add_custom_command(TARGET VulkanPlayground
+            POST_BUILD
+            COMMAND cmd /c $ENV{VULKAN_SDK}/Bin/glslc.exe ${CMAKE_SOURCE_DIR}/shaders/shader.vert -o  vert.spv
+            COMMAND cmd /c $ENV{VULKAN_SDK}/Bin/glslc.exe ${CMAKE_SOURCE_DIR}/shaders/shader.frag -o  frag.spv
+    )
+endif()

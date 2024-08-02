@@ -103,6 +103,8 @@ private:
     // Create Pipeline Cache
     void CreatePipelineCache();
 
+    void CreateGraphicsPipeline();
+
     // Create Frame Buffers
     void CreateFrameBuffers();
 
