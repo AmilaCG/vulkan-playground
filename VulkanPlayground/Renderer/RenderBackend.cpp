@@ -792,6 +792,68 @@ void RenderBackend::CreateGraphicsPipeline()
     ReadShaderFile(VERT_SHADER_PATH, vertShaderCode);
     std::vector<char> fragShaderCode;
     ReadShaderFile(FRAG_SHADER_PATH, fragShaderCode);
+
+    VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
+    VkShaderModule fragShaderModule = CreateShaderModule(fragShaderCode);
+
+    std::vector<VkPipelineShaderStageCreateInfo> stages;
+    VkPipelineShaderStageCreateInfo stage{};
+    stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stage.pName = "main";
+
+    // Setup pipeline stage for vertex shader
+    stage.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    stage.module = vertShaderModule;
+    stages.emplace_back(stage);
+
+    // Setup pipeline stage for fragment shader
+    stage.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    stage.module = fragShaderModule;
+    stages.emplace_back(stage);
+
+    // TODO: This is hardcoded. Revisit this.
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInputInfo.vertexBindingDescriptionCount = 0;
+    vertexInputInfo.pVertexBindingDescriptions = nullptr; // Optional
+    vertexInputInfo.vertexAttributeDescriptionCount = 0;
+    vertexInputInfo.pVertexAttributeDescriptions = nullptr; // Optional
+
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+    inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+    // A viewport is the region of the framebuffer that the output will be rendered to
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(m_swapchainExtent.width);
+    viewport.height = static_cast<float>(m_swapchainExtent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent = m_swapchainExtent;
+
+    const std::vector<VkDynamicState> dynamicStates {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
+    };
+
+    VkPipelineDynamicStateCreateInfo dynamicState{};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicState.dynamicStateCount = dynamicStates.size();
+    dynamicState.pDynamicStates = dynamicStates.data();
+
+    VkPipelineViewportStateCreateInfo viewportState{};
+    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportState.viewportCount = 1;
+    viewportState.scissorCount = 1;
+
+    vkDestroyShaderModule(m_vkContext.device, vertShaderModule, nullptr);
+    vkDestroyShaderModule(m_vkContext.device, fragShaderModule, nullptr);
 }
 
 void RenderBackend::CreateFrameBuffers()
@@ -817,4 +879,17 @@ VkExtent2D RenderBackend::ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& ca
     }
 
     return extent;
+}
+
+VkShaderModule RenderBackend::CreateShaderModule(const std::vector<char>& code)
+{
+    VkShaderModuleCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.codeSize = code.size();
+    createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+
+    VkShaderModule shaderModule;
+    vkCreateShaderModule(m_vkContext.device, &createInfo, nullptr, &shaderModule);
+
+    return shaderModule;
 }

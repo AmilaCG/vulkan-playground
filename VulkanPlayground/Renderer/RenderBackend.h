@@ -109,6 +109,7 @@ private:
     void CreateFrameBuffers();
 
     VkExtent2D ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& caps);
+    VkShaderModule CreateShaderModule(const std::vector<char>& code);
 
 private:
     GLFWwindow*                     m_window;
