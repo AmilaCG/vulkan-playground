@@ -8,7 +8,7 @@ int main()
     {
         RenderBackend renderBackend;
         renderBackend.Init();
-        // Render loop goes here
+        renderBackend.RunRenderLoop();
         renderBackend.Shutdown();
     }
     catch (const std::exception& e)

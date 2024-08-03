@@ -56,6 +56,7 @@ public:
 
     void Init();
     void Shutdown();
+    void RunRenderLoop();
 
 private:
     // GLFW window init
@@ -106,6 +107,8 @@ private:
     void CreateFrameBuffers();
 
     void RecordCommandbuffer(const VkCommandBuffer& commandBuffer, uint32_t imageIndex);
+
+    void DrawFrame();
 
     VkExtent2D ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& caps);
     VkShaderModule CreateShaderModule(const std::vector<char>& code);

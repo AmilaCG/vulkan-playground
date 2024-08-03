@@ -304,6 +304,15 @@ void RenderBackend::Shutdown()
     glfwTerminate();
 }
 
+void RenderBackend::RunRenderLoop()
+{
+    while (!glfwWindowShouldClose(m_window))
+    {
+        glfwPollEvents();
+        DrawFrame();
+    }
+}
+
 bool RenderBackend::WindowInit()
 {
     glfwInit();
@@ -1015,8 +1024,13 @@ void RenderBackend::RecordCommandbuffer(const VkCommandBuffer& commandBuffer, co
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
     {
-        throw std::runtime_error("failed to record command buffer!");
+        throw std::runtime_error("Failed to record command buffer!");
     }
+}
+
+void RenderBackend::DrawFrame()
+{
+
 }
 
 VkExtent2D RenderBackend::ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& caps)
