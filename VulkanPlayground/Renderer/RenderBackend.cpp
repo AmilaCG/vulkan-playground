@@ -161,6 +161,7 @@ static void ReadShaderFile(const std::string& filename, std::vector<char>& buffe
 
 RenderBackend::RenderBackend() : m_window(nullptr),
                                  m_enableValidation(true),
+                                 m_counter(0),
                                  m_currentFrame(0),
                                  m_acquireSemaphores(NUM_FRAME_DATA),
                                  m_renderCompleteSemaphores(NUM_FRAME_DATA),
@@ -1086,7 +1087,8 @@ void RenderBackend::DrawFrame()
 
     vkQueuePresentKHR(m_vkCtx.presentQueue, &presentInfo);
 
-    m_currentFrame = (m_currentFrame + 1) % NUM_FRAME_DATA;
+    m_counter++;
+    m_currentFrame = m_counter % NUM_FRAME_DATA;
 }
 
 VkExtent2D RenderBackend::ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& caps)
