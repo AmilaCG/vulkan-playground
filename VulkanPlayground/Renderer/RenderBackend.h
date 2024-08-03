@@ -128,10 +128,10 @@ private:
 
     std::vector<VkSemaphore>        m_acquireSemaphores;
     std::vector<VkSemaphore>        m_renderCompleteSemaphores;
+    std::vector<VkFence>            m_commandBufferFences;
 
     VkCommandPool                   m_commandPool{};
     std::vector<VkCommandBuffer>    m_commandBuffers;
-    std::vector<VkFence>            m_commandBufferFences;
     VkSwapchainKHR                  m_swapchain{};
     VkFormat                        m_swapchainFormat{};
     VkExtent2D                      m_swapchainExtent{};

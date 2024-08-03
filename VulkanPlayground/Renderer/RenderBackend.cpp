@@ -311,6 +311,8 @@ void RenderBackend::RunRenderLoop()
         glfwPollEvents();
         DrawFrame();
     }
+
+    vkDeviceWaitIdle(m_vkContext.device);
 }
 
 bool RenderBackend::WindowInit()
@@ -673,6 +675,8 @@ void RenderBackend::CreateCommandBuffers()
 
     VkFenceCreateInfo fenceCreateInfo{};
     fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    // The first call to vkWaitForFences() returns immediately since the fence is already signaled
+    fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
     // Create fences that we can use to wait for a given command buffer to be done on the GPU
     for (int i = 0; i < NUM_FRAME_DATA; i++)
@@ -814,12 +818,22 @@ void RenderBackend::CreateRenderPass()
     // shader with the "layout(location = 0) out vec4 outColor" directive
     subpass.pColorAttachments = &colorAttachmentRef;
 
+    VkSubpassDependency dependency{};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcAccessMask = 0;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
     VkRenderPassCreateInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     renderPassInfo.attachmentCount = 1;
     renderPassInfo.pAttachments = &colorAttachment;
     renderPassInfo.subpassCount = 1;
     renderPassInfo.pSubpasses = &subpass;
+    renderPassInfo.dependencyCount = 1;
+    renderPassInfo.pDependencies = &dependency;
 
     vkCreateRenderPass(m_vkContext.device, &renderPassInfo, nullptr, &m_vkContext.renderPass);
 }
@@ -1030,7 +1044,47 @@ void RenderBackend::RecordCommandbuffer(const VkCommandBuffer& commandBuffer, co
 
 void RenderBackend::DrawFrame()
 {
+    vkWaitForFences(m_vkContext.device, 1, &m_commandBufferFences[0], VK_TRUE, UINT64_MAX);
+    vkResetFences(m_vkContext.device, 1, &m_commandBufferFences[0]);
 
+    uint32_t imageIndex;
+    vkAcquireNextImageKHR(m_vkContext.device, m_swapchain, UINT64_MAX, m_acquireSemaphores[0], VK_NULL_HANDLE, &imageIndex);
+
+    vkResetCommandBuffer(m_commandBuffers[0], 0);
+    RecordCommandbuffer(m_commandBuffers[0], imageIndex);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    VkSemaphore waitSemaphores[] = {m_acquireSemaphores[0]};
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &m_commandBuffers[0];
+
+    VkSemaphore signalSemaphores[] = {m_renderCompleteSemaphores[0]};
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    if (vkQueueSubmit(m_vkContext.graphicsQueue, 1, &submitInfo, m_commandBufferFences[0]) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to submit draw command buffer!");
+    }
+
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores;
+
+    VkSwapchainKHR swapChains[] = {m_swapchain};
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapChains;
+    presentInfo.pImageIndices = &imageIndex;
+
+    vkQueuePresentKHR(m_vkContext.presentQueue, &presentInfo);
 }
 
 VkExtent2D RenderBackend::ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& caps)
