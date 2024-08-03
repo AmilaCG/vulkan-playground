@@ -118,6 +118,8 @@ private:
     VkPhysicalDevice                m_physicalDevice{};
     bool                            m_enableValidation;
 
+    uint32_t                        m_currentFrame;
+
     std::vector<const char*>        m_instanceExtensions;
     std::vector<const char*>        m_deviceExtensions;
     std::vector<const char*>        m_validationLayers;

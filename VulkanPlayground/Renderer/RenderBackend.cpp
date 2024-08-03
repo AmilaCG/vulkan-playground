@@ -161,10 +161,11 @@ static void ReadShaderFile(const std::string& filename, std::vector<char>& buffe
 
 RenderBackend::RenderBackend() : m_window(nullptr),
                                  m_enableValidation(true),
+                                 m_currentFrame(0),
                                  m_acquireSemaphores(NUM_FRAME_DATA),
                                  m_renderCompleteSemaphores(NUM_FRAME_DATA),
-                                 m_commandBuffers(NUM_FRAME_DATA),
                                  m_commandBufferFences(NUM_FRAME_DATA),
+                                 m_commandBuffers(NUM_FRAME_DATA),
                                  m_swapchainImages(NUM_FRAME_DATA),
                                  m_swapchainViews(NUM_FRAME_DATA),
                                  m_swapchainFramebuffers(NUM_FRAME_DATA)
@@ -1042,31 +1043,32 @@ void RenderBackend::RecordCommandbuffer(const VkCommandBuffer& commandBuffer, co
 
 void RenderBackend::DrawFrame()
 {
-    vkWaitForFences(m_vkCtx.device, 1, &m_commandBufferFences[0], VK_TRUE, UINT64_MAX);
-    vkResetFences(m_vkCtx.device, 1, &m_commandBufferFences[0]);
+    vkWaitForFences(m_vkCtx.device, 1, &m_commandBufferFences[m_currentFrame], VK_TRUE, UINT64_MAX);
+    vkResetFences(m_vkCtx.device, 1, &m_commandBufferFences[m_currentFrame]);
 
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(m_vkCtx.device, m_swapchain, UINT64_MAX, m_acquireSemaphores[0], VK_NULL_HANDLE, &imageIndex);
+    vkAcquireNextImageKHR(
+        m_vkCtx.device,m_swapchain, UINT64_MAX, m_acquireSemaphores[m_currentFrame], VK_NULL_HANDLE, &imageIndex);
 
-    vkResetCommandBuffer(m_commandBuffers[0], 0);
-    RecordCommandbuffer(m_commandBuffers[0], imageIndex);
+    vkResetCommandBuffer(m_commandBuffers[m_currentFrame], 0);
+    RecordCommandbuffer(m_commandBuffers[m_currentFrame], imageIndex);
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore waitSemaphores[] = {m_acquireSemaphores[0]};
+    VkSemaphore waitSemaphores[] = {m_acquireSemaphores[m_currentFrame]};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = waitSemaphores;
     submitInfo.pWaitDstStageMask = waitStages;
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &m_commandBuffers[0];
+    submitInfo.pCommandBuffers = &m_commandBuffers[m_currentFrame];
 
-    VkSemaphore signalSemaphores[] = {m_renderCompleteSemaphores[0]};
+    VkSemaphore signalSemaphores[] = {m_renderCompleteSemaphores[m_currentFrame]};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    if (vkQueueSubmit(m_vkCtx.graphicsQueue, 1, &submitInfo, m_commandBufferFences[0]) != VK_SUCCESS)
+    if (vkQueueSubmit(m_vkCtx.graphicsQueue, 1, &submitInfo, m_commandBufferFences[m_currentFrame]) != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to submit draw command buffer!");
     }
@@ -1078,11 +1080,13 @@ void RenderBackend::DrawFrame()
     presentInfo.pWaitSemaphores = signalSemaphores;
 
     VkSwapchainKHR swapChains[] = {m_swapchain};
-    presentInfo.swapchainCount = 1;
+    presentInfo.swapchainCount = std::size(swapChains);
     presentInfo.pSwapchains = swapChains;
     presentInfo.pImageIndices = &imageIndex;
 
     vkQueuePresentKHR(m_vkCtx.presentQueue, &presentInfo);
+
+    m_currentFrame = (m_currentFrame + 1) % NUM_FRAME_DATA;
 }
 
 VkExtent2D RenderBackend::ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& caps)
