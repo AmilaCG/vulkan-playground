@@ -170,7 +170,7 @@ RenderBackend::RenderBackend() : m_window(nullptr),
                                  m_commandBufferFences(NUM_FRAME_DATA),
                                  m_swapchainImages(NUM_FRAME_DATA),
                                  m_swapchainViews(NUM_FRAME_DATA),
-                                 m_framebuffers(NUM_FRAME_DATA)
+                                 m_swapchainFramebuffers(NUM_FRAME_DATA)
 {
 #ifdef NDEBUG
     m_enableValidation = false;
@@ -260,13 +260,18 @@ void RenderBackend::Init()
 
 void RenderBackend::Shutdown()
 {
+    for (const auto& framebuffer : m_swapchainFramebuffers)
+    {
+        vkDestroyFramebuffer(m_vkContext.device, framebuffer, nullptr);
+    }
+
     vkDestroyPipeline(m_vkContext.device, m_pipeline, nullptr);
     vkDestroyPipelineLayout(m_vkContext.device, m_pipelineLayout, nullptr);
     vkDestroyRenderPass(m_vkContext.device, m_vkContext.renderPass, nullptr);
 
-    for (uint32_t i = 0; i < NUM_FRAME_DATA; i++)
+    for (const auto& imageView : m_swapchainViews)
     {
-        vkDestroyImageView(m_vkContext.device, m_swapchainViews[i], nullptr);
+        vkDestroyImageView(m_vkContext.device, imageView, nullptr);
     }
     vkDestroySwapchainKHR(m_vkContext.device, m_swapchain, nullptr);
 
@@ -947,7 +952,22 @@ void RenderBackend::CreateGraphicsPipeline()
 
 void RenderBackend::CreateFrameBuffers()
 {
+    for (size_t i = 0; i < m_swapchainImages.size(); i++) {
+        const VkImageView attachments[] = {
+            m_swapchainViews[i]
+        };
 
+        VkFramebufferCreateInfo framebufferInfo{};
+        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass = m_vkContext.renderPass;
+        framebufferInfo.attachmentCount = 1;
+        framebufferInfo.pAttachments = attachments;
+        framebufferInfo.width = m_swapchainExtent.width;
+        framebufferInfo.height = m_swapchainExtent.height;
+        framebufferInfo.layers = 1;
+
+        vkCreateFramebuffer(m_vkContext.device, &framebufferInfo, nullptr, &m_swapchainFramebuffers[i]);
+    }
 }
 
 VkExtent2D RenderBackend::ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& caps)

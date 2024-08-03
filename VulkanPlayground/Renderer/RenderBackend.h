@@ -132,7 +132,7 @@ private:
     VkExtent2D                      m_swapchainExtent{};
     std::vector<VkImage>            m_swapchainImages;
     std::vector<VkImageView>        m_swapchainViews;
-    std::vector<VkFramebuffer>      m_framebuffers;
+    std::vector<VkFramebuffer>      m_swapchainFramebuffers;
 
     VkPipelineLayout                m_pipelineLayout{};
     VkPipeline                      m_pipeline{};
