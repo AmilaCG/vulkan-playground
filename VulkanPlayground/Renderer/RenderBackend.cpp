@@ -163,23 +163,14 @@ static void ReadShaderFile(const std::string& filename, std::vector<char>& buffe
 }
 
 RenderBackend::RenderBackend() : m_window(nullptr),
-                                 m_instance(),
-                                 m_surface(),
-                                 m_presentMode(),
-                                 m_physicalDevice(),
                                  m_enableValidation(true),
                                  m_acquireSemaphores(NUM_FRAME_DATA),
                                  m_renderCompleteSemaphores(NUM_FRAME_DATA),
-                                 m_commandPool(),
                                  m_commandBuffers(NUM_FRAME_DATA),
                                  m_commandBufferFences(NUM_FRAME_DATA),
-                                 m_swapchain(),
-                                 m_swapchainFormat(),
-                                 m_swapchainExtent(),
                                  m_swapchainImages(NUM_FRAME_DATA),
                                  m_swapchainViews(NUM_FRAME_DATA),
-                                 m_pipelineLayout(),
-                                 m_pipeline()
+                                 m_framebuffers(NUM_FRAME_DATA)
 {
 #ifdef NDEBUG
     m_enableValidation = false;
@@ -956,6 +947,7 @@ void RenderBackend::CreateGraphicsPipeline()
 
 void RenderBackend::CreateFrameBuffers()
 {
+
 }
 
 VkExtent2D RenderBackend::ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& caps)

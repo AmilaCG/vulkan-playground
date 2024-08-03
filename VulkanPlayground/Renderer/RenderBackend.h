@@ -110,11 +110,11 @@ private:
 
 private:
     GLFWwindow*                     m_window;
-    VkInstance                      m_instance;
-    VkSurfaceKHR                    m_surface;
-    VkPresentModeKHR                m_presentMode;
+    VkInstance                      m_instance{};
+    VkSurfaceKHR                    m_surface{};
+    VkPresentModeKHR                m_presentMode{};
     VulkanContext_t                 m_vkContext{};
-    VkPhysicalDevice                m_physicalDevice;
+    VkPhysicalDevice                m_physicalDevice{};
     bool                            m_enableValidation;
 
     std::vector<const char*>        m_instanceExtensions;
@@ -124,16 +124,17 @@ private:
     std::vector<VkSemaphore>        m_acquireSemaphores;
     std::vector<VkSemaphore>        m_renderCompleteSemaphores;
 
-    VkCommandPool                   m_commandPool;
+    VkCommandPool                   m_commandPool{};
     std::vector<VkCommandBuffer>    m_commandBuffers;
     std::vector<VkFence>            m_commandBufferFences;
-    VkSwapchainKHR                  m_swapchain;
-    VkFormat                        m_swapchainFormat;
-    VkExtent2D                      m_swapchainExtent;
+    VkSwapchainKHR                  m_swapchain{};
+    VkFormat                        m_swapchainFormat{};
+    VkExtent2D                      m_swapchainExtent{};
     std::vector<VkImage>            m_swapchainImages;
     std::vector<VkImageView>        m_swapchainViews;
+    std::vector<VkFramebuffer>      m_framebuffers;
 
-    VkPipelineLayout                m_pipelineLayout;
+    VkPipelineLayout                m_pipelineLayout{};
     VkPipeline                      m_pipeline{};
 };
 
