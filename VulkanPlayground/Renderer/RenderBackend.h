@@ -105,6 +105,8 @@ private:
     // Create Frame Buffers
     void CreateFrameBuffers();
 
+    void RecordCommandbuffer(const VkCommandBuffer& commandBuffer, uint32_t imageIndex);
+
     VkExtent2D ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& caps);
     VkShaderModule CreateShaderModule(const std::vector<char>& code);
 
