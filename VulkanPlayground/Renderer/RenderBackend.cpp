@@ -177,7 +177,8 @@ RenderBackend::RenderBackend() : m_window(nullptr),
                                  m_swapchainFormat(),
                                  m_swapchainExtent(),
                                  m_swapchainImages(NUM_FRAME_DATA),
-                                 m_swapchainViews(NUM_FRAME_DATA)
+                                 m_swapchainViews(NUM_FRAME_DATA),
+                                 m_pipelineLayout()
 {
 #ifdef NDEBUG
     m_enableValidation = false;
@@ -267,6 +268,8 @@ void RenderBackend::Init()
 
 void RenderBackend::Shutdown()
 {
+    vkDestroyPipelineLayout(m_vkContext.device, m_pipelineLayout, nullptr);
+
     for (uint32_t i = 0; i < NUM_FRAME_DATA; i++)
     {
         vkDestroyImageView(m_vkContext.device, m_swapchainViews[i], nullptr);
@@ -821,6 +824,22 @@ void RenderBackend::CreateGraphicsPipeline()
     multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
     multisampleState.minSampleShading = 1.0f; // Optional
 
+    // TODO: Depth / Stencil
+
+    // Color Blend Attachment
+    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
+        VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment.blendEnable = VK_FALSE;
+
+    // Color Blend
+    VkPipelineColorBlendStateCreateInfo colorBlendState{};
+    colorBlendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlendState.logicOpEnable = VK_FALSE;
+    colorBlendState.logicOp = VK_LOGIC_OP_COPY;
+    colorBlendState.attachmentCount = 1;
+    colorBlendState.pAttachments = &colorBlendAttachment;
+
     // Read shader files and create shader module
     std::vector<char> vertShaderCode;
     ReadShaderFile(VERT_SHADER_PATH, vertShaderCode);
@@ -871,6 +890,11 @@ void RenderBackend::CreateGraphicsPipeline()
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewportState.viewportCount = 1;
     viewportState.scissorCount = 1;
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+
+    vkCreatePipelineLayout(m_vkContext.device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout);
 
     vkDestroyShaderModule(m_vkContext.device, vertShaderModule, nullptr);
     vkDestroyShaderModule(m_vkContext.device, fragShaderModule, nullptr);
