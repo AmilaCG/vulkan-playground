@@ -178,7 +178,8 @@ RenderBackend::RenderBackend() : m_window(nullptr),
                                  m_swapchainExtent(),
                                  m_swapchainImages(NUM_FRAME_DATA),
                                  m_swapchainViews(NUM_FRAME_DATA),
-                                 m_pipelineLayout()
+                                 m_pipelineLayout(),
+                                 m_pipeline()
 {
 #ifdef NDEBUG
     m_enableValidation = false;
@@ -268,6 +269,7 @@ void RenderBackend::Init()
 
 void RenderBackend::Shutdown()
 {
+    vkDestroyPipeline(m_vkContext.device, m_pipeline, nullptr);
     vkDestroyPipelineLayout(m_vkContext.device, m_pipelineLayout, nullptr);
     vkDestroyRenderPass(m_vkContext.device, m_vkContext.renderPass, nullptr);
 
@@ -880,7 +882,7 @@ void RenderBackend::CreateGraphicsPipeline()
     ReadShaderFile(FRAG_SHADER_PATH, fragShaderCode);
     VkShaderModule fragShaderModule = CreateShaderModule(fragShaderCode);
 
-    std::vector<VkPipelineShaderStageCreateInfo> stages;
+    std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
     VkPipelineShaderStageCreateInfo stage{};
     stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     stage.pName = "main";
@@ -888,12 +890,12 @@ void RenderBackend::CreateGraphicsPipeline()
     // Setup pipeline stage for vertex shader
     stage.stage = VK_SHADER_STAGE_VERTEX_BIT;
     stage.module = vertShaderModule;
-    stages.emplace_back(stage);
+    shaderStages.emplace_back(stage);
 
     // Setup pipeline stage for fragment shader
     stage.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     stage.module = fragShaderModule;
-    stages.emplace_back(stage);
+    shaderStages.emplace_back(stage);
 
     // A viewport is the region of the framebuffer that the output will be rendered to
     VkViewport viewport{};
@@ -927,6 +929,26 @@ void RenderBackend::CreateGraphicsPipeline()
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 
     vkCreatePipelineLayout(m_vkContext.device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout);
+
+    VkGraphicsPipelineCreateInfo pipelineInfo{};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.layout = m_pipelineLayout;
+    pipelineInfo.renderPass = m_vkContext.renderPass;
+    pipelineInfo.subpass = 0;
+    pipelineInfo.stageCount = shaderStages.size();
+    pipelineInfo.pStages = shaderStages.data();
+    pipelineInfo.pVertexInputState = &vertexInputState;
+    pipelineInfo.pInputAssemblyState = &inputAssemblyState;
+    pipelineInfo.pViewportState = &viewportState;
+    pipelineInfo.pRasterizationState = &rasterizationState;
+    pipelineInfo.pMultisampleState = &multisampleState;
+    pipelineInfo.pDepthStencilState = nullptr; // Optional
+    pipelineInfo.pColorBlendState = &colorBlendState;
+    pipelineInfo.pDynamicState = &dynamicState;
+    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
+    pipelineInfo.basePipelineIndex = -1; // Optional
+
+    vkCreateGraphicsPipelines(m_vkContext.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_pipeline);
 
     vkDestroyShaderModule(m_vkContext.device, vertShaderModule, nullptr);
     vkDestroyShaderModule(m_vkContext.device, fragShaderModule, nullptr);

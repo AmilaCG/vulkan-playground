@@ -134,6 +134,7 @@ private:
     std::vector<VkImageView>        m_swapchainViews;
 
     VkPipelineLayout                m_pipelineLayout;
+    VkPipeline                      m_pipeline{};
 };
 
 #endif
