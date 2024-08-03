@@ -114,7 +114,7 @@ private:
     VkInstance                      m_instance{};
     VkSurfaceKHR                    m_surface{};
     VkPresentModeKHR                m_presentMode{};
-    VulkanContext_t                 m_vkContext{};
+    VulkanContext_t                 m_vkCtx{};
     VkPhysicalDevice                m_physicalDevice{};
     bool                            m_enableValidation;
 

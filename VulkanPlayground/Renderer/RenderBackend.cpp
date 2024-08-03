@@ -259,40 +259,40 @@ void RenderBackend::Shutdown()
 {
     for (const auto& framebuffer : m_swapchainFramebuffers)
     {
-        vkDestroyFramebuffer(m_vkContext.device, framebuffer, nullptr);
+        vkDestroyFramebuffer(m_vkCtx.device, framebuffer, nullptr);
     }
 
-    vkDestroyPipeline(m_vkContext.device, m_pipeline, nullptr);
-    vkDestroyPipelineLayout(m_vkContext.device, m_pipelineLayout, nullptr);
-    vkDestroyRenderPass(m_vkContext.device, m_vkContext.renderPass, nullptr);
+    vkDestroyPipeline(m_vkCtx.device, m_pipeline, nullptr);
+    vkDestroyPipelineLayout(m_vkCtx.device, m_pipelineLayout, nullptr);
+    vkDestroyRenderPass(m_vkCtx.device, m_vkCtx.renderPass, nullptr);
 
     for (const auto& imageView : m_swapchainViews)
     {
-        vkDestroyImageView(m_vkContext.device, imageView, nullptr);
+        vkDestroyImageView(m_vkCtx.device, imageView, nullptr);
     }
-    vkDestroySwapchainKHR(m_vkContext.device, m_swapchain, nullptr);
+    vkDestroySwapchainKHR(m_vkCtx.device, m_swapchain, nullptr);
 
     // Destroy fences
     for (const VkFence& fence : m_commandBufferFences)
     {
-        vkDestroyFence(m_vkContext.device, fence, nullptr);
+        vkDestroyFence(m_vkCtx.device, fence, nullptr);
     }
 
     // TODO: Is it necessary to release command buffers? Validation layer doesn't complain
-    vkDestroyCommandPool(m_vkContext.device, m_commandPool, nullptr);
+    vkDestroyCommandPool(m_vkCtx.device, m_commandPool, nullptr);
 
     // Destroy semaphores
     for (const VkSemaphore& semaphore : m_acquireSemaphores)
     {
-        vkDestroySemaphore(m_vkContext.device, semaphore, nullptr);
+        vkDestroySemaphore(m_vkCtx.device, semaphore, nullptr);
     }
     for (const VkSemaphore& semaphore : m_renderCompleteSemaphores)
     {
-        vkDestroySemaphore(m_vkContext.device, semaphore, nullptr);
+        vkDestroySemaphore(m_vkCtx.device, semaphore, nullptr);
     }
 
     // Destroy logical device
-    vkDestroyDevice(m_vkContext.device, nullptr);
+    vkDestroyDevice(m_vkCtx.device, nullptr);
     // Destroy window surface
     vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
     vkDestroyInstance(m_instance, nullptr);
@@ -310,7 +310,7 @@ void RenderBackend::RunRenderLoop()
     }
 
     // Wait for the logical device to finish operations before exiting
-    vkDeviceWaitIdle(m_vkContext.device);
+    vkDeviceWaitIdle(m_vkCtx.device);
 }
 
 bool RenderBackend::WindowInit()
@@ -555,10 +555,10 @@ void RenderBackend::SelectSuitablePhysicalDevice()
         // Did we find a device supporting both graphics and present
         if (graphicsIdx >= 0 && presentIdx >= 0)
         {
-            m_vkContext.graphicsFamilyIdx = graphicsIdx;
-            m_vkContext.presentFamilyIdx = presentIdx;
+            m_vkCtx.graphicsFamilyIdx = graphicsIdx;
+            m_vkCtx.presentFamilyIdx = presentIdx;
             m_physicalDevice = gpu.device;
-            m_vkContext.gpu = gpu;
+            m_vkCtx.gpu = gpu;
             std::cout << "Selected device: " << gpu.props.deviceName << std::endl;
 
             return;
@@ -573,8 +573,8 @@ void RenderBackend::CreateLogicalDeviceAndQueues()
 
     // Add each family index to a list. Don't do duplicates.
     std::unordered_set<int> uniqueIdx;
-    uniqueIdx.insert(m_vkContext.graphicsFamilyIdx);
-    uniqueIdx.insert(m_vkContext.presentFamilyIdx);
+    uniqueIdx.insert(m_vkCtx.graphicsFamilyIdx);
+    uniqueIdx.insert(m_vkCtx.presentFamilyIdx);
 
     std::vector<VkDeviceQueueCreateInfo> devQInfo;
 
@@ -613,13 +613,13 @@ void RenderBackend::CreateLogicalDeviceAndQueues()
         info.enabledLayerCount = 0;
     }
 
-    if (vkCreateDevice(m_physicalDevice, &info, nullptr, &m_vkContext.device) != VK_SUCCESS)
+    if (vkCreateDevice(m_physicalDevice, &info, nullptr, &m_vkCtx.device) != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to create the logical device!\n");
     }
 
-    vkGetDeviceQueue(m_vkContext.device, m_vkContext.graphicsFamilyIdx, 0, &m_vkContext.graphicsQueue);
-    vkGetDeviceQueue(m_vkContext.device, m_vkContext.presentFamilyIdx, 0, &m_vkContext.presentQueue);
+    vkGetDeviceQueue(m_vkCtx.device, m_vkCtx.graphicsFamilyIdx, 0, &m_vkCtx.graphicsQueue);
+    vkGetDeviceQueue(m_vkCtx.device, m_vkCtx.presentFamilyIdx, 0, &m_vkCtx.presentQueue);
 }
 
 void RenderBackend::CreateSemaphores()
@@ -630,8 +630,8 @@ void RenderBackend::CreateSemaphores()
     // Synchronize access to rendering and presenting images (double buffered images)
     for (int i = 0; i < NUM_FRAME_DATA; i++)
     {
-        vkCreateSemaphore(m_vkContext.device, &semaphoreCreateInfo, nullptr, &m_acquireSemaphores[i]);
-        vkCreateSemaphore(m_vkContext.device, &semaphoreCreateInfo, nullptr, &m_renderCompleteSemaphores[i]);
+        vkCreateSemaphore(m_vkCtx.device, &semaphoreCreateInfo, nullptr, &m_acquireSemaphores[i]);
+        vkCreateSemaphore(m_vkCtx.device, &semaphoreCreateInfo, nullptr, &m_renderCompleteSemaphores[i]);
     }
 }
 
@@ -652,9 +652,9 @@ void RenderBackend::CreateCommandPool()
     commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
     // We'll be building command buffers to send to the graphics queue
-    commandPoolCreateInfo.queueFamilyIndex = m_vkContext.graphicsFamilyIdx;
+    commandPoolCreateInfo.queueFamilyIndex = m_vkCtx.graphicsFamilyIdx;
 
-    if (vkCreateCommandPool(m_vkContext.device, &commandPoolCreateInfo, nullptr, &m_commandPool) != VK_SUCCESS)
+    if (vkCreateCommandPool(m_vkCtx.device, &commandPoolCreateInfo, nullptr, &m_commandPool) != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to create the command pool!\n");
     }
@@ -669,7 +669,7 @@ void RenderBackend::CreateCommandBuffers()
     commandBufferAllocateInfo.commandBufferCount = NUM_FRAME_DATA;
 
     // Allocating multiple command buffers at once
-    vkAllocateCommandBuffers(m_vkContext.device, &commandBufferAllocateInfo, m_commandBuffers.data());
+    vkAllocateCommandBuffers(m_vkCtx.device, &commandBufferAllocateInfo, m_commandBuffers.data());
 
     VkFenceCreateInfo fenceCreateInfo{};
     fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -679,13 +679,13 @@ void RenderBackend::CreateCommandBuffers()
     // Create fences that we can use to wait for a given command buffer to be done on the GPU
     for (int i = 0; i < NUM_FRAME_DATA; i++)
     {
-        vkCreateFence(m_vkContext.device, &fenceCreateInfo, nullptr, &m_commandBufferFences[i]);
+        vkCreateFence(m_vkCtx.device, &fenceCreateInfo, nullptr, &m_commandBufferFences[i]);
     }
 }
 
 void RenderBackend::CreateSwapChain()
 {
-    GPUInfo_t& gpu = m_vkContext.gpu;
+    GPUInfo_t& gpu = m_vkCtx.gpu;
 
     VkSurfaceFormatKHR surfaceFormat = ChooseSurfaceFormat(gpu.surfaceFormats);
     const VkPresentModeKHR presentMode = ChoosePresentMode(gpu.presentModes);
@@ -705,11 +705,11 @@ void RenderBackend::CreateSwapChain()
 
     // If the graphics queue family and present family don't match
     // then we need to create the swapchain with different information.
-    if (m_vkContext.graphicsFamilyIdx != m_vkContext.presentFamilyIdx)
+    if (m_vkCtx.graphicsFamilyIdx != m_vkCtx.presentFamilyIdx)
     {
         const uint32_t indices[] = {
-            static_cast<uint32_t>(m_vkContext.graphicsFamilyIdx),
-            static_cast<uint32_t>(m_vkContext.presentFamilyIdx)
+            static_cast<uint32_t>(m_vkCtx.graphicsFamilyIdx),
+            static_cast<uint32_t>(m_vkCtx.presentFamilyIdx)
         };
 
         // There are only two sharing modes. This is the one to use if images are not exclusive to one queue.
@@ -732,7 +732,7 @@ void RenderBackend::CreateSwapChain()
     info.clipped = VK_TRUE;
 
     // Create swapchain
-    vkCreateSwapchainKHR(m_vkContext.device, &info, nullptr, &m_swapchain);
+    vkCreateSwapchainKHR(m_vkCtx.device, &info, nullptr, &m_swapchain);
 
     // Save off swapchain details
     m_swapchainFormat = surfaceFormat.format;
@@ -743,12 +743,12 @@ void RenderBackend::CreateSwapChain()
     // Note that VkImage is simply a handle like everything else.
 
     uint32_t numImages = 0;
-    vkGetSwapchainImagesKHR(m_vkContext.device, m_swapchain, &numImages, nullptr);
+    vkGetSwapchainImagesKHR(m_vkCtx.device, m_swapchain, &numImages, nullptr);
     if (numImages == 0)
     {
         throw std::runtime_error("vkGetSwapchainImagesKHR returned a zero image count.\n");
     }
-    vkGetSwapchainImagesKHR(m_vkContext.device, m_swapchain, &numImages, m_swapchainImages.data());
+    vkGetSwapchainImagesKHR(m_vkCtx.device, m_swapchain, &numImages, m_swapchainImages.data());
     if (numImages == 0)
     {
         throw std::runtime_error("vkGetSwapchainImagesKHR returned a zero image count.\n");
@@ -781,7 +781,7 @@ void RenderBackend::CreateSwapChain()
         imageViewCreateInfo.subresourceRange.layerCount = 1;
         imageViewCreateInfo.flags = 0;
 
-        vkCreateImageView(m_vkContext.device, &imageViewCreateInfo, nullptr, &m_swapchainViews[i]);
+        vkCreateImageView(m_vkCtx.device, &imageViewCreateInfo, nullptr, &m_swapchainViews[i]);
     }
 }
 
@@ -833,7 +833,7 @@ void RenderBackend::CreateRenderPass()
     renderPassInfo.dependencyCount = 1;
     renderPassInfo.pDependencies = &dependency;
 
-    vkCreateRenderPass(m_vkContext.device, &renderPassInfo, nullptr, &m_vkContext.renderPass);
+    vkCreateRenderPass(m_vkCtx.device, &renderPassInfo, nullptr, &m_vkCtx.renderPass);
 }
 
 void RenderBackend::CreatePipelineCache()
@@ -945,12 +945,12 @@ void RenderBackend::CreateGraphicsPipeline()
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 
-    vkCreatePipelineLayout(m_vkContext.device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout);
+    vkCreatePipelineLayout(m_vkCtx.device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout);
 
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.layout = m_pipelineLayout;
-    pipelineInfo.renderPass = m_vkContext.renderPass;
+    pipelineInfo.renderPass = m_vkCtx.renderPass;
     pipelineInfo.subpass = 0;
     pipelineInfo.stageCount = shaderStages.size();
     pipelineInfo.pStages = shaderStages.data();
@@ -965,10 +965,10 @@ void RenderBackend::CreateGraphicsPipeline()
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
     pipelineInfo.basePipelineIndex = -1; // Optional
 
-    vkCreateGraphicsPipelines(m_vkContext.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_pipeline);
+    vkCreateGraphicsPipelines(m_vkCtx.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_pipeline);
 
-    vkDestroyShaderModule(m_vkContext.device, vertShaderModule, nullptr);
-    vkDestroyShaderModule(m_vkContext.device, fragShaderModule, nullptr);
+    vkDestroyShaderModule(m_vkCtx.device, vertShaderModule, nullptr);
+    vkDestroyShaderModule(m_vkCtx.device, fragShaderModule, nullptr);
 }
 
 void RenderBackend::CreateFrameBuffers()
@@ -980,14 +980,14 @@ void RenderBackend::CreateFrameBuffers()
 
         VkFramebufferCreateInfo framebufferInfo{};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = m_vkContext.renderPass;
+        framebufferInfo.renderPass = m_vkCtx.renderPass;
         framebufferInfo.attachmentCount = 1;
         framebufferInfo.pAttachments = attachments;
         framebufferInfo.width = m_swapchainExtent.width;
         framebufferInfo.height = m_swapchainExtent.height;
         framebufferInfo.layers = 1;
 
-        vkCreateFramebuffer(m_vkContext.device, &framebufferInfo, nullptr, &m_swapchainFramebuffers[i]);
+        vkCreateFramebuffer(m_vkCtx.device, &framebufferInfo, nullptr, &m_swapchainFramebuffers[i]);
     }
 }
 
@@ -1003,7 +1003,7 @@ void RenderBackend::RecordCommandbuffer(const VkCommandBuffer& commandBuffer, co
 
     VkRenderPassBeginInfo renderPassBeginInfo{};
     renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassBeginInfo.renderPass = m_vkContext.renderPass;
+    renderPassBeginInfo.renderPass = m_vkCtx.renderPass;
     renderPassBeginInfo.framebuffer = m_swapchainFramebuffers[imageIndex];
     renderPassBeginInfo.renderArea.offset = {0, 0};
     renderPassBeginInfo.renderArea.extent = m_swapchainExtent;
@@ -1042,11 +1042,11 @@ void RenderBackend::RecordCommandbuffer(const VkCommandBuffer& commandBuffer, co
 
 void RenderBackend::DrawFrame()
 {
-    vkWaitForFences(m_vkContext.device, 1, &m_commandBufferFences[0], VK_TRUE, UINT64_MAX);
-    vkResetFences(m_vkContext.device, 1, &m_commandBufferFences[0]);
+    vkWaitForFences(m_vkCtx.device, 1, &m_commandBufferFences[0], VK_TRUE, UINT64_MAX);
+    vkResetFences(m_vkCtx.device, 1, &m_commandBufferFences[0]);
 
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(m_vkContext.device, m_swapchain, UINT64_MAX, m_acquireSemaphores[0], VK_NULL_HANDLE, &imageIndex);
+    vkAcquireNextImageKHR(m_vkCtx.device, m_swapchain, UINT64_MAX, m_acquireSemaphores[0], VK_NULL_HANDLE, &imageIndex);
 
     vkResetCommandBuffer(m_commandBuffers[0], 0);
     RecordCommandbuffer(m_commandBuffers[0], imageIndex);
@@ -1066,7 +1066,7 @@ void RenderBackend::DrawFrame()
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    if (vkQueueSubmit(m_vkContext.graphicsQueue, 1, &submitInfo, m_commandBufferFences[0]) != VK_SUCCESS)
+    if (vkQueueSubmit(m_vkCtx.graphicsQueue, 1, &submitInfo, m_commandBufferFences[0]) != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to submit draw command buffer!");
     }
@@ -1082,7 +1082,7 @@ void RenderBackend::DrawFrame()
     presentInfo.pSwapchains = swapChains;
     presentInfo.pImageIndices = &imageIndex;
 
-    vkQueuePresentKHR(m_vkContext.presentQueue, &presentInfo);
+    vkQueuePresentKHR(m_vkCtx.presentQueue, &presentInfo);
 }
 
 VkExtent2D RenderBackend::ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& caps)
@@ -1114,7 +1114,7 @@ VkShaderModule RenderBackend::CreateShaderModule(const std::vector<char>& code)
     createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
     VkShaderModule shaderModule;
-    vkCreateShaderModule(m_vkContext.device, &createInfo, nullptr, &shaderModule);
+    vkCreateShaderModule(m_vkCtx.device, &createInfo, nullptr, &shaderModule);
 
     return shaderModule;
 }
