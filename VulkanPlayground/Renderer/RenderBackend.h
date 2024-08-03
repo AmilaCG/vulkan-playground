@@ -43,12 +43,9 @@ struct VulkanContext_t
 
     VkFormat                    depthFormat;
     VkRenderPass                renderPass;
-    VkRenderPass                renderPassResume;
     VkPipelineCache             pipelineCache;
     VkSampleCountFlagBits       sampleCount;
     bool                        supersampling;
-
-    // idArray< idImage *, MAX_IMAGE_PARMS > imageParms;
 };
 
 class RenderBackend
