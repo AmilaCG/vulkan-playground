@@ -11,18 +11,15 @@ constexpr uint32_t SCR_HEIGHT = 720;
 constexpr std::string VERT_SHADER_PATH = "vert.spv";
 constexpr std::string FRAG_SHADER_PATH = "frag.spv";
 
-static constexpr int g_numDebugInstanceExtensions = 1;
-static const char* g_debugInstanceExtensions[g_numDebugInstanceExtensions] = {
+static const char* g_debugInstanceExtensions[] = {
     VK_EXT_DEBUG_REPORT_EXTENSION_NAME
 };
 
-static constexpr int g_numDeviceExtensions = 1;
-static const char* g_deviceExtensions[g_numDeviceExtensions] = {
+static const char* g_deviceExtensions[] = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
-static constexpr int g_numValidationLayers = 1;
-static const char* g_validationLayers[g_numValidationLayers] = {
+static const char* g_validationLayers[] = {
     "VK_LAYER_KHRONOS_validation"
 };
 
@@ -312,6 +309,7 @@ void RenderBackend::RunRenderLoop()
         DrawFrame();
     }
 
+    // Wait for the logical device to finish operations before exiting
     vkDeviceWaitIdle(m_vkContext.device);
 }
 

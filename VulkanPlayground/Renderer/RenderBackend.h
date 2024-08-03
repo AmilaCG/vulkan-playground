@@ -10,8 +10,6 @@
 #include <vulkan/vulkan_core.h>
 #include <vector>
 
-#include "RenderCommon.h"
-
 // Everything that is needed by the backend needs to be double buffered to allow it to run in
 // parallel on a dual cpu machine
 static constexpr uint32_t NUM_FRAME_DATA = 2;
@@ -31,8 +29,6 @@ struct GPUInfo_t
 
 struct VulkanContext_t
 {
-    vertCacheHandle_t           jointCacheHandle;
-
     GPUInfo_t                   gpu;
 
     VkDevice                    device;
