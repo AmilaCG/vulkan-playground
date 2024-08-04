@@ -95,7 +95,8 @@ static VkSurfaceFormatKHR ChooseSurfaceFormat(std::vector<VkSurfaceFormatKHR>& f
 
 static VkPresentModeKHR ChoosePresentMode(std::vector<VkPresentModeKHR>& modes)
 {
-    // Favor looking for mailbox mode
+    // VK_PRESENT_MODE_FIFO_KHR    - Cap FPS at screen refresh rate
+    // VK_PRESENT_MODE_MAILBOX_KHR - No FPS cap
     constexpr VkPresentModeKHR desiredMode = VK_PRESENT_MODE_MAILBOX_KHR;
 
     for (const VkPresentModeKHR& mode : modes)
@@ -106,7 +107,7 @@ static VkPresentModeKHR ChoosePresentMode(std::vector<VkPresentModeKHR>& modes)
         }
     }
 
-    // If we couldn't find mailbox, then default to FIFO which is always available
+    // If we couldn't find desired mode, then default to FIFO which is always available
     return VK_PRESENT_MODE_FIFO_KHR;
 }
 
