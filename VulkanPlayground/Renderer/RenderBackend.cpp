@@ -1117,6 +1117,18 @@ void RenderBackend::DrawFrame()
 
 void RenderBackend::RecreateSwapchain()
 {
+    // TODO: Research on the validation error that triggers each time resizing the window
+
+    int width, height;
+    glfwGetFramebufferSize(m_window, &width, &height);
+
+    // After the window is minimized, wait until it is restored
+    while (width == 0 || height == 0)
+    {
+        glfwGetFramebufferSize(m_window, &width, &height);
+        glfwWaitEvents();
+    }
+
     vkDeviceWaitIdle(m_vkCtx.device);
 
     CleanupSwapchain();
