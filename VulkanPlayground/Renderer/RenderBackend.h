@@ -53,6 +53,7 @@ public:
     void Init();
     void Shutdown();
     void RunRenderLoop();
+    void SetFramebufferResizeFlag(bool resized);
 
 private:
     bool WindowInit();
@@ -106,6 +107,7 @@ private:
     std::vector<VkImage>            m_swapchainImages;
     std::vector<VkImageView>        m_swapchainViews;
     std::vector<VkFramebuffer>      m_swapchainFramebuffers;
+    bool                            m_frameBufferResized{false};
 
     VkPipelineLayout                m_pipelineLayout{};
     VkPipeline                      m_pipeline{};

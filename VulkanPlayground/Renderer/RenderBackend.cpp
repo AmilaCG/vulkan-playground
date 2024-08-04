@@ -160,6 +160,12 @@ static void ReadShaderFile(const std::string& filename, std::vector<char>& buffe
     file.close();
 }
 
+static void OnFramebufferResize(GLFWwindow* window, int width, int height)
+{
+    const auto renderer = static_cast<RenderBackend*>(glfwGetWindowUserPointer(window));
+    renderer->SetFramebufferResizeFlag(true);
+}
+
 RenderBackend::RenderBackend() : m_window(nullptr),
                                  m_enableValidation(true),
                                  m_currentFrame(0),
@@ -306,12 +312,21 @@ void RenderBackend::RunRenderLoop()
     vkDeviceWaitIdle(m_vkCtx.device);
 }
 
+// Although many drivers and platforms trigger VK_ERROR_OUT_OF_DATE_KHR automatically after a window resize,
+// it is not guaranteed to happen. Therefore we use this flag as a backup.
+void RenderBackend::SetFramebufferResizeFlag(const bool resized)
+{
+    m_frameBufferResized = resized;
+}
+
 bool RenderBackend::WindowInit()
 {
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     m_window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Vulkan Playground", nullptr, nullptr);
+    glfwSetWindowUserPointer(m_window, this);
+    glfwSetFramebufferSizeCallback(m_window, OnFramebufferResize);
 
     return m_window != nullptr;
 }
@@ -1087,8 +1102,9 @@ void RenderBackend::DrawFrame()
     presentInfo.pImageIndices = &imageIndex;
 
     if (const VkResult result = vkQueuePresentKHR(m_vkCtx.presentQueue, &presentInfo);
-        result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+        result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_frameBufferResized)
     {
+        m_frameBufferResized = false;
         RecreateSwapchain();
     }
     else if (result != VK_SUCCESS)
