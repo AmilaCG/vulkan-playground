@@ -259,20 +259,11 @@ void RenderBackend::Init()
 
 void RenderBackend::Shutdown()
 {
-    for (const auto& framebuffer : m_swapchainFramebuffers)
-    {
-        vkDestroyFramebuffer(m_vkCtx.device, framebuffer, nullptr);
-    }
+    CleanupSwapchain();
 
     vkDestroyPipeline(m_vkCtx.device, m_pipeline, nullptr);
     vkDestroyPipelineLayout(m_vkCtx.device, m_pipelineLayout, nullptr);
     vkDestroyRenderPass(m_vkCtx.device, m_vkCtx.renderPass, nullptr);
-
-    for (const auto& imageView : m_swapchainViews)
-    {
-        vkDestroyImageView(m_vkCtx.device, imageView, nullptr);
-    }
-    vkDestroySwapchainKHR(m_vkCtx.device, m_swapchain, nullptr);
 
     // Destroy fences
     for (const VkFence& fence : m_commandBufferFences)
@@ -1045,11 +1036,21 @@ void RenderBackend::RecordCommandbuffer(const VkCommandBuffer& commandBuffer, co
 void RenderBackend::DrawFrame()
 {
     vkWaitForFences(m_vkCtx.device, 1, &m_commandBufferFences[m_currentFrame], VK_TRUE, UINT64_MAX);
-    vkResetFences(m_vkCtx.device, 1, &m_commandBufferFences[m_currentFrame]);
 
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(
-        m_vkCtx.device,m_swapchain, UINT64_MAX, m_acquireSemaphores[m_currentFrame], VK_NULL_HANDLE, &imageIndex);
+    if (const VkResult result = vkAcquireNextImageKHR(
+        m_vkCtx.device, m_swapchain, UINT64_MAX, m_acquireSemaphores[m_currentFrame], VK_NULL_HANDLE, &imageIndex);
+        result == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        RecreateSwapchain();
+        return;
+    }
+    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+    {
+        throw std::runtime_error("Failed to acquire swap chain image!");
+    }
+
+    vkResetFences(m_vkCtx.device, 1, &m_commandBufferFences[m_currentFrame]);
 
     vkResetCommandBuffer(m_commandBuffers[m_currentFrame], 0);
     RecordCommandbuffer(m_commandBuffers[m_currentFrame], imageIndex);
@@ -1085,26 +1086,57 @@ void RenderBackend::DrawFrame()
     presentInfo.pSwapchains = swapChains;
     presentInfo.pImageIndices = &imageIndex;
 
-    vkQueuePresentKHR(m_vkCtx.presentQueue, &presentInfo);
+    if (const VkResult result = vkQueuePresentKHR(m_vkCtx.presentQueue, &presentInfo);
+        result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+    {
+        RecreateSwapchain();
+    }
+    else if (result != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to present swap chain image!");
+    }
 
     m_currentFrame = ++m_currentFrame % NUM_FRAME_DATA;
 }
 
 void RenderBackend::RecreateSwapchain()
 {
+    vkDeviceWaitIdle(m_vkCtx.device);
 
+    CleanupSwapchain();
+
+    CreateSwapChain();
+    CreateFrameBuffers();
+}
+
+void RenderBackend::CleanupSwapchain()
+{
+    for (const VkFramebuffer& frameBuffer : m_swapchainFramebuffers)
+    {
+        vkDestroyFramebuffer(m_vkCtx.device, frameBuffer, nullptr);
+    }
+
+    for (const VkImageView& imageView : m_swapchainViews)
+    {
+        vkDestroyImageView(m_vkCtx.device, imageView, nullptr);
+    }
+
+    vkDestroySwapchainKHR(m_vkCtx.device, m_swapchain, nullptr);
 }
 
 VkExtent2D RenderBackend::ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& caps)
 {
     VkExtent2D extent;
 
+    int winWidth, winHeight;
+    glfwGetWindowSize(m_window, &winWidth, &winHeight);
+
     // The extent is typically the size of the window we created the surface from.
     // However if Vulkan returns -1 then simply substitute the window size.
-    if ( caps.currentExtent.width == -1 )
+    if (caps.currentExtent.width == -1 ||
+        caps.currentExtent.width != winWidth ||
+        caps.currentExtent.height != winHeight)
     {
-        int winWidth, winHeight;
-        glfwGetWindowSize(m_window, &winWidth, &winHeight);
         extent.width = winWidth;
         extent.height = winHeight;
     }

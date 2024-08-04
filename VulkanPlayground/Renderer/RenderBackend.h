@@ -74,6 +74,7 @@ private:
     void RecordCommandbuffer(const VkCommandBuffer& commandBuffer, uint32_t imageIndex);
     void DrawFrame();
     void RecreateSwapchain();
+    void CleanupSwapchain();
 
     VkExtent2D ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& caps);
     VkShaderModule CreateShaderModule(const std::vector<char>& code);
