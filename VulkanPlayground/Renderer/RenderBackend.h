@@ -55,56 +55,25 @@ public:
     void RunRenderLoop();
 
 private:
-    // GLFW window init
     bool WindowInit();
-
-    // Input and sound systems need to be tied to the new window
     void SysInitInput();
-
-    // Create the instance
     void CreateInstance();
-
-    // Create presentation surface
     void CreateSurface();
-
-    // Enumerate physical devices and get their properties
     void SelectSuitablePhysicalDevice();
-
-    // Create logical device and queues
     void CreateLogicalDeviceAndQueues();
-
-    // Create semaphores for image acquisition and rendering completion
     void CreateSemaphores();
-
-    // Create Query Pool
     void CreateQueryPool();
-
-    // Create Command Pool
     void CreateCommandPool();
-
-    // Create Command Buffer
     void CreateCommandBuffers();
-
-    // Create Swap Chain
     void CreateSwapChain();
-
-    // Create Render Targets
     void CreateRenderTargets();
-
-    // Create Render Pass
     void CreateRenderPass();
-
-    // Create Pipeline Cache
     void CreatePipelineCache();
-
     void CreateGraphicsPipeline();
-
-    // Create Frame Buffers
     void CreateFrameBuffers();
-
     void RecordCommandbuffer(const VkCommandBuffer& commandBuffer, uint32_t imageIndex);
-
     void DrawFrame();
+    void RecreateSwapchain();
 
     VkExtent2D ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& caps);
     VkShaderModule CreateShaderModule(const std::vector<char>& code);

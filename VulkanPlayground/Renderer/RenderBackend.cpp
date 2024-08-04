@@ -1057,15 +1057,15 @@ void RenderBackend::DrawFrame()
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore waitSemaphores[] = {m_acquireSemaphores[m_currentFrame]};
-    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    submitInfo.waitSemaphoreCount = 1;
+    const VkSemaphore waitSemaphores[] = {m_acquireSemaphores[m_currentFrame]};
+    constexpr VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    submitInfo.waitSemaphoreCount = std::size(waitSemaphores);
     submitInfo.pWaitSemaphores = waitSemaphores;
     submitInfo.pWaitDstStageMask = waitStages;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &m_commandBuffers[m_currentFrame];
 
-    VkSemaphore signalSemaphores[] = {m_renderCompleteSemaphores[m_currentFrame]};
+    const VkSemaphore signalSemaphores[] = {m_renderCompleteSemaphores[m_currentFrame]};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
@@ -1077,10 +1077,10 @@ void RenderBackend::DrawFrame()
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
-    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.waitSemaphoreCount = std::size(signalSemaphores);
     presentInfo.pWaitSemaphores = signalSemaphores;
 
-    VkSwapchainKHR swapChains[] = {m_swapchain};
+    const VkSwapchainKHR swapChains[] = {m_swapchain};
     presentInfo.swapchainCount = std::size(swapChains);
     presentInfo.pSwapchains = swapChains;
     presentInfo.pImageIndices = &imageIndex;
@@ -1088,6 +1088,11 @@ void RenderBackend::DrawFrame()
     vkQueuePresentKHR(m_vkCtx.presentQueue, &presentInfo);
 
     m_currentFrame = ++m_currentFrame % NUM_FRAME_DATA;
+}
+
+void RenderBackend::RecreateSwapchain()
+{
+
 }
 
 VkExtent2D RenderBackend::ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& caps)
