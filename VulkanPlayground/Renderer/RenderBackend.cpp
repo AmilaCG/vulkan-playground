@@ -97,7 +97,7 @@ static VkPresentModeKHR ChoosePresentMode(std::vector<VkPresentModeKHR>& modes)
 {
     // VK_PRESENT_MODE_FIFO_KHR    - Cap FPS at screen refresh rate
     // VK_PRESENT_MODE_MAILBOX_KHR - No FPS cap
-    constexpr VkPresentModeKHR desiredMode = VK_PRESENT_MODE_MAILBOX_KHR;
+    constexpr VkPresentModeKHR desiredMode = VK_PRESENT_MODE_FIFO_KHR;
 
     for (const VkPresentModeKHR& mode : modes)
     {
