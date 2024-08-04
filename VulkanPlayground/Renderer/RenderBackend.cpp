@@ -20,7 +20,7 @@ static const char* g_deviceExtensions[] = {
 };
 
 static const char* g_validationLayers[] = {
-    "VK_LAYER_KHRONOS_validation"
+    "VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor"
 };
 
 static void ValidateValidationLayers()
