@@ -177,7 +177,7 @@ RenderBackend::RenderBackend() : m_window(nullptr),
                                  m_swapchainViews(NUM_FRAME_DATA),
                                  m_swapchainFramebuffers(NUM_FRAME_DATA)
 {
-#ifdef NDEBUG
+#ifdef VALIDATION_OFF
     m_enableValidation = false;
 #else
     m_enableValidation = true;

@@ -11,6 +11,9 @@ add_executable(VulkanPlayground
         main.cpp
         Renderer/RenderBackend.cpp)
 
+# Uncomment following definition to disable validation layers
+#add_definitions(-DVALIDATION_OFF)
+
 find_package(Vulkan REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
