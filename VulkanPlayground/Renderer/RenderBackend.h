@@ -81,32 +81,32 @@ private:
     VkShaderModule CreateShaderModule(const std::vector<char>& code);
 
 private:
-    GLFWwindow*                     m_window;
+    GLFWwindow*                     m_window{nullptr};
     VkInstance                      m_instance{};
     VkSurfaceKHR                    m_surface{};
     VkPresentModeKHR                m_presentMode{};
     VulkanContext_t                 m_vkCtx{};
     VkPhysicalDevice                m_physicalDevice{};
-    bool                            m_enableValidation;
+    bool                            m_enableValidation{true};
 
-    uint32_t                        m_currentFrame;
+    uint32_t                        m_currentFrame{0};
 
     std::vector<const char*>        m_instanceExtensions;
     std::vector<const char*>        m_deviceExtensions;
     std::vector<const char*>        m_validationLayers;
 
-    std::vector<VkSemaphore>        m_acquireSemaphores;
-    std::vector<VkSemaphore>        m_renderCompleteSemaphores;
-    std::vector<VkFence>            m_commandBufferFences;
+    std::vector<VkSemaphore>        m_acquireSemaphores{NUM_FRAME_DATA};
+    std::vector<VkSemaphore>        m_renderCompleteSemaphores{NUM_FRAME_DATA};
+    std::vector<VkFence>            m_commandBufferFences{NUM_FRAME_DATA};
 
     VkCommandPool                   m_commandPool{};
-    std::vector<VkCommandBuffer>    m_commandBuffers;
+    std::vector<VkCommandBuffer>    m_commandBuffers{NUM_FRAME_DATA};
     VkSwapchainKHR                  m_swapchain{};
     VkFormat                        m_swapchainFormat{};
     VkExtent2D                      m_swapchainExtent{};
-    std::vector<VkImage>            m_swapchainImages;
-    std::vector<VkImageView>        m_swapchainViews;
-    std::vector<VkFramebuffer>      m_swapchainFramebuffers;
+    std::vector<VkImage>            m_swapchainImages{NUM_FRAME_DATA};
+    std::vector<VkImageView>        m_swapchainViews{NUM_FRAME_DATA};
+    std::vector<VkFramebuffer>      m_swapchainFramebuffers{NUM_FRAME_DATA};
     bool                            m_frameBufferResized{false};
 
     VkPipelineLayout                m_pipelineLayout{};

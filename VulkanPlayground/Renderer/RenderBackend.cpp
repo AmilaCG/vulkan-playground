@@ -166,16 +166,7 @@ static void OnFramebufferResize(GLFWwindow* window, int width, int height)
     renderer->SetFramebufferResizeFlag(true);
 }
 
-RenderBackend::RenderBackend() : m_window(nullptr),
-                                 m_enableValidation(true),
-                                 m_currentFrame(0),
-                                 m_acquireSemaphores(NUM_FRAME_DATA),
-                                 m_renderCompleteSemaphores(NUM_FRAME_DATA),
-                                 m_commandBufferFences(NUM_FRAME_DATA),
-                                 m_commandBuffers(NUM_FRAME_DATA),
-                                 m_swapchainImages(NUM_FRAME_DATA),
-                                 m_swapchainViews(NUM_FRAME_DATA),
-                                 m_swapchainFramebuffers(NUM_FRAME_DATA)
+RenderBackend::RenderBackend()
 {
 #ifdef VALIDATION_OFF
     m_enableValidation = false;
