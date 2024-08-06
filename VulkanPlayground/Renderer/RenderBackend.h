@@ -31,17 +31,14 @@ struct VulkanContext_t
 {
     GPUInfo_t                   gpu;
 
-    VkDevice                    device;
-    int                         graphicsFamilyIdx;
-    int                         presentFamilyIdx;
-    VkQueue                     graphicsQueue;
-    VkQueue                     presentQueue;
+    VkDevice                    device{};
+    int                         graphicsFamilyIdx{};
+    int                         presentFamilyIdx{};
+    VkQueue                     graphicsQueue{};
+    VkQueue                     presentQueue{};
 
-    VkFormat                    depthFormat;
-    VkRenderPass                renderPass;
-    VkPipelineCache             pipelineCache;
-    VkSampleCountFlagBits       sampleCount;
-    bool                        supersampling;
+    VkFormat                    depthFormat{};
+    VkRenderPass                renderPass{};
 };
 
 class RenderBackend
@@ -78,14 +75,12 @@ private:
     void CleanupSwapchain();
 
     VkExtent2D ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& caps);
-    VkShaderModule CreateShaderModule(const std::vector<char>& code);
 
 private:
     GLFWwindow*                     m_window{nullptr};
     VkInstance                      m_instance{};
     VkSurfaceKHR                    m_surface{};
     VkPresentModeKHR                m_presentMode{};
-    VulkanContext_t                 m_vkCtx{};
     VkPhysicalDevice                m_physicalDevice{};
     bool                            m_enableValidation{true};
 
