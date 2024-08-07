@@ -23,6 +23,12 @@ static const char* g_validationLayers[] = {
     "VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor"
 };
 
+const std::vector<Vertex_t> g_vertices = {
+    {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+};
+
 VulkanContext_t g_vkCtx{};
 
 static void ValidateValidationLayers()
@@ -642,7 +648,7 @@ void RenderBackend::CreateSemaphores()
     semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
     // Synchronize access to rendering and presenting images (double buffered images)
-    for (int i = 0; i < NUM_FRAME_DATA; i++)
+    for (int i = 0; i < FRAMES_IN_FLIGHT; i++)
     {
         vkCreateSemaphore(g_vkCtx.device, &semaphoreCreateInfo, nullptr, &m_acquireSemaphores[i]);
         vkCreateSemaphore(g_vkCtx.device, &semaphoreCreateInfo, nullptr, &m_renderCompleteSemaphores[i]);
@@ -680,7 +686,7 @@ void RenderBackend::CreateCommandBuffers()
     commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     commandBufferAllocateInfo.commandPool = m_commandPool;
-    commandBufferAllocateInfo.commandBufferCount = NUM_FRAME_DATA;
+    commandBufferAllocateInfo.commandBufferCount = FRAMES_IN_FLIGHT;
 
     // Allocating multiple command buffers at once
     vkAllocateCommandBuffers(g_vkCtx.device, &commandBufferAllocateInfo, m_commandBuffers.data());
@@ -691,7 +697,7 @@ void RenderBackend::CreateCommandBuffers()
     fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
     // Create fences that we can use to wait for a given command buffer to be done on the GPU
-    for (int i = 0; i < NUM_FRAME_DATA; i++)
+    for (int i = 0; i < FRAMES_IN_FLIGHT; i++)
     {
         vkCreateFence(g_vkCtx.device, &fenceCreateInfo, nullptr, &m_commandBufferFences[i]);
     }
@@ -708,7 +714,7 @@ void RenderBackend::CreateSwapChain()
     VkSwapchainCreateInfoKHR info{};
     info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     info.surface = m_surface;
-    info.minImageCount = NUM_FRAME_DATA;
+    info.minImageCount = FRAMES_IN_FLIGHT;
     info.imageFormat = surfaceFormat.format;
     info.imageColorSpace = surfaceFormat.colorSpace;
     info.imageExtent = extent;
@@ -772,7 +778,7 @@ void RenderBackend::CreateSwapChain()
     // image views are interfaces to actual images.  Think of it as this.
     // The image exists outside of you.  But the view is your personal view
     // ( how you perceive ) the image.
-    for (uint32_t i = 0; i < NUM_FRAME_DATA; i++)
+    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++)
     {
         VkImageViewCreateInfo imageViewCreateInfo{};
         imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -856,14 +862,16 @@ void RenderBackend::CreatePipelineCache()
 
 void RenderBackend::CreateGraphicsPipeline()
 {
+    auto bindingDescription = Vertex_t::GetBindingDescription();
+    auto attributeDescriptions = Vertex_t::GetAttributeDescriptions();
+
     // Vertex Input
-    // TODO: This is hardcoded. Revisit this.
     VkPipelineVertexInputStateCreateInfo vertexInputState{};
     vertexInputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputState.vertexBindingDescriptionCount = 0;
-    vertexInputState.pVertexBindingDescriptions = nullptr; // Optional
-    vertexInputState.vertexAttributeDescriptionCount = 0;
-    vertexInputState.pVertexAttributeDescriptions = nullptr; // Optional
+    vertexInputState.vertexBindingDescriptionCount = 1;
+    vertexInputState.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputState.vertexAttributeDescriptionCount = attributeDescriptions.size();
+    vertexInputState.pVertexAttributeDescriptions = attributeDescriptions.data();
 
     // Input Assembly
     VkPipelineInputAssemblyStateCreateInfo inputAssemblyState{};
@@ -1118,7 +1126,7 @@ void RenderBackend::DrawFrame()
         throw std::runtime_error("Failed to present swap chain image!");
     }
 
-    m_currentFrame = ++m_currentFrame % NUM_FRAME_DATA;
+    m_currentFrame = ++m_currentFrame % FRAMES_IN_FLIGHT;
 }
 
 void RenderBackend::RecreateSwapchain()

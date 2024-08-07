@@ -7,12 +7,14 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 
-#include <vulkan/vulkan_core.h>
 #include <vector>
+#include <array>
+#include <vulkan/vulkan_core.h>
+#include <glm/glm.hpp>
 
 // Everything that is needed by the backend needs to be double buffered to allow it to run in
 // parallel on a dual cpu machine
-static constexpr uint32_t NUM_FRAME_DATA = 2;
+static constexpr uint32_t FRAMES_IN_FLIGHT = 2;
 
 struct GPUInfo_t
 {
@@ -39,6 +41,38 @@ struct VulkanContext_t
 
     VkFormat                    depthFormat{};
     VkRenderPass                renderPass{};
+};
+
+struct Vertex_t
+{
+    glm::vec2 pos;
+    glm::vec3 color;
+
+    static VkVertexInputBindingDescription GetBindingDescription()
+    {
+        VkVertexInputBindingDescription bindingDescription{};
+        bindingDescription.binding = 0;
+        bindingDescription.stride = sizeof(Vertex_t);
+        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+        return bindingDescription;
+    }
+
+    static std::array<VkVertexInputAttributeDescription, 2> GetAttributeDescriptions()
+    {
+        std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+        attributeDescriptions[0].binding = 0; // Location directive of the input in vertex shader
+        attributeDescriptions[0].location = 0;
+        attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+        attributeDescriptions[0].offset = offsetof(Vertex_t, pos);
+
+        attributeDescriptions[1].binding = 0;
+        attributeDescriptions[1].location = 1;
+        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions[1].offset = offsetof(Vertex_t, color);
+
+        return attributeDescriptions;
+    }
 };
 
 class RenderBackend
@@ -90,18 +124,18 @@ private:
     std::vector<const char*>        m_deviceExtensions;
     std::vector<const char*>        m_validationLayers;
 
-    std::vector<VkSemaphore>        m_acquireSemaphores{NUM_FRAME_DATA};
-    std::vector<VkSemaphore>        m_renderCompleteSemaphores{NUM_FRAME_DATA};
-    std::vector<VkFence>            m_commandBufferFences{NUM_FRAME_DATA};
+    std::vector<VkSemaphore>        m_acquireSemaphores{FRAMES_IN_FLIGHT};
+    std::vector<VkSemaphore>        m_renderCompleteSemaphores{FRAMES_IN_FLIGHT};
+    std::vector<VkFence>            m_commandBufferFences{FRAMES_IN_FLIGHT};
 
     VkCommandPool                   m_commandPool{};
-    std::vector<VkCommandBuffer>    m_commandBuffers{NUM_FRAME_DATA};
+    std::vector<VkCommandBuffer>    m_commandBuffers{FRAMES_IN_FLIGHT};
     VkSwapchainKHR                  m_swapchain{};
     VkFormat                        m_swapchainFormat{};
     VkExtent2D                      m_swapchainExtent{};
-    std::vector<VkImage>            m_swapchainImages{NUM_FRAME_DATA};
-    std::vector<VkImageView>        m_swapchainViews{NUM_FRAME_DATA};
-    std::vector<VkFramebuffer>      m_swapchainFramebuffers{NUM_FRAME_DATA};
+    std::vector<VkImage>            m_swapchainImages{FRAMES_IN_FLIGHT};
+    std::vector<VkImageView>        m_swapchainViews{FRAMES_IN_FLIGHT};
+    std::vector<VkFramebuffer>      m_swapchainFramebuffers{FRAMES_IN_FLIGHT};
     bool                            m_frameBufferResized{false};
 
     VkPipelineLayout                m_pipelineLayout{};
