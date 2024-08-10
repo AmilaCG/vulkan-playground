@@ -230,76 +230,18 @@ void RenderBackend::Init()
         throw std::runtime_error("Unable to initialize the GLFW window");
     }
 
-    // Input and sound systems need to be tied to the new window
-    SysInitInput();
-
-    // Create the instance
     CreateInstance();
-
-    // Create presentation surface
     CreateSurface();
-
-    // Enumerate physical devices and get their properties
     SelectSuitablePhysicalDevice();
-
-    // Create logical device and queues
     CreateLogicalDeviceAndQueues();
-
-    // Create semaphores for image acquisition and rendering completion
     CreateSemaphores();
-
-    // Create Query Pool
-    CreateQueryPool();
-
-    // Create Command Pool
     CreateCommandPool();
-
     CreateVertexBuffer();
-
-    // Create Command Buffer
     CreateCommandBuffers();
-
-    // Setup the allocator
-#if defined( ID_USE_AMD_ALLOCATOR )
-    extern idCVar r_vkHostVisibleMemoryMB;
-    extern idCVar r_vkDeviceLocalMemoryMB;
-
-    VmaAllocatorCreateInfo createInfo = {};
-    createInfo.physicalDevice = g_vkCtx.physicalDevice;
-    createInfo.device = vkcontext.device;
-    createInfo.preferredSmallHeapBlockSize = r_vkHostVisibleMemoryMB.GetInteger() * 1024 * 1024;
-    createInfo.preferredLargeHeapBlockSize = r_vkDeviceLocalMemoryMB.GetInteger() * 1024 * 1024;
-
-    vmaCreateAllocator( &createInfo, &vmaAllocator );
-#else
-    // vulkanAllocator.Init();
-#endif
-
-    // Start the Staging Manager
-    // stagingManager.Init();
-
-    // Create Swap Chain
     CreateSwapChain();
-
-    // Create Render Targets
-    CreateRenderTargets();
-
-    // Create Render Pass
     CreateRenderPass();
-
-    // Create Pipeline Cache
-    CreatePipelineCache();
-
     CreateGraphicsPipeline();
-
-    // Create Frame Buffers
     CreateFrameBuffers();
-
-    // Init RenderProg Manager
-    // renderProgManager.Init();
-
-    // Init Vertex Cache
-    // vertexCache.Init( vkcontext.gpu.props.limits.minUniformBufferOffsetAlignment );
 }
 
 void RenderBackend::Shutdown()
@@ -371,11 +313,6 @@ bool RenderBackend::WindowInit()
     glfwSetFramebufferSizeCallback(m_window, OnFramebufferResize);
 
     return m_window != nullptr;
-}
-
-void RenderBackend::SysInitInput()
-{
-
 }
 
 void RenderBackend::CreateInstance()
@@ -685,10 +622,6 @@ void RenderBackend::CreateSemaphores()
     }
 }
 
-void RenderBackend::CreateQueryPool()
-{
-}
-
 void RenderBackend::CreateCommandPool()
 {
     // Because command buffers can be very flexible, we don't want to be
@@ -876,11 +809,6 @@ void RenderBackend::CreateSwapChain()
     }
 }
 
-void RenderBackend::CreateRenderTargets()
-{
-    // TODO: Had to skip this. Not sure how to implement this.
-}
-
 void RenderBackend::CreateRenderPass()
 {
     VkAttachmentDescription colorAttachment{};
@@ -925,10 +853,6 @@ void RenderBackend::CreateRenderPass()
     renderPassInfo.pDependencies = &dependency;
 
     vkCreateRenderPass(g_vkCtx.device, &renderPassInfo, nullptr, &g_vkCtx.renderPass);
-}
-
-void RenderBackend::CreatePipelineCache()
-{
 }
 
 void RenderBackend::CreateGraphicsPipeline()

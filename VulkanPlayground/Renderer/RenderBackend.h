@@ -94,20 +94,16 @@ public:
 
 private:
     bool WindowInit();
-    void SysInitInput();
     void CreateInstance();
     void CreateSurface();
     void SelectSuitablePhysicalDevice();
     void CreateLogicalDeviceAndQueues();
     void CreateSemaphores();
-    void CreateQueryPool();
     void CreateCommandPool();
     void CreateVertexBuffer();
     void CreateCommandBuffers();
     void CreateSwapChain();
-    void CreateRenderTargets();
     void CreateRenderPass();
-    void CreatePipelineCache();
     void CreateGraphicsPipeline();
     void CreateFrameBuffers();
     void RecordCommandbuffer(const VkCommandBuffer& commandBuffer, uint32_t imageIndex);
