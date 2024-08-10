@@ -741,6 +741,11 @@ void RenderBackend::CreateVertexBuffer()
     {
         throw std::runtime_error("Failed binding to vertex buffer memory!");
     }
+
+    void* data;
+    vkMapMemory(g_vkCtx.device, m_vertexBufferMemory, 0, bufferInfo.size, 0, &data);
+    memcpy(data, g_vertices.data(), bufferInfo.size);
+    vkUnmapMemory(g_vkCtx.device, m_vertexBufferMemory);
 }
 
 void RenderBackend::CreateCommandBuffers()
@@ -1104,6 +1109,10 @@ void RenderBackend::RecordCommandbuffer(const VkCommandBuffer& commandBuffer, co
 
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
 
+    const VkBuffer vertexBuffers[] = {m_vertexBuffer};
+    constexpr VkDeviceSize offsets[] = {0};
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
@@ -1118,7 +1127,7 @@ void RenderBackend::RecordCommandbuffer(const VkCommandBuffer& commandBuffer, co
     scissor.extent = m_swapchainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+    vkCmdDraw(commandBuffer, g_vertices.size(), 1, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
 
