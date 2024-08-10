@@ -33,14 +33,20 @@ struct VulkanContext_t
 {
     GPUInfo_t                   gpu;
 
+    VkInstance                  instance{};
     VkDevice                    device{};
+    VkPhysicalDevice            physicalDevice{};
     int                         graphicsFamilyIdx{};
     int                         presentFamilyIdx{};
     VkQueue                     graphicsQueue{};
     VkQueue                     presentQueue{};
+    VkPresentModeKHR            presentMode{};
+    VkSurfaceKHR                surface{};
 
     VkFormat                    depthFormat{};
     VkRenderPass                renderPass{};
+
+    bool                        enableValidation{true};
 };
 
 struct Vertex_t
@@ -96,6 +102,7 @@ private:
     void CreateSemaphores();
     void CreateQueryPool();
     void CreateCommandPool();
+    void CreateVertexBuffer();
     void CreateCommandBuffers();
     void CreateSwapChain();
     void CreateRenderTargets();
@@ -112,11 +119,6 @@ private:
 
 private:
     GLFWwindow*                     m_window{nullptr};
-    VkInstance                      m_instance{};
-    VkSurfaceKHR                    m_surface{};
-    VkPresentModeKHR                m_presentMode{};
-    VkPhysicalDevice                m_physicalDevice{};
-    bool                            m_enableValidation{true};
 
     uint32_t                        m_currentFrame{0};
 
@@ -140,6 +142,9 @@ private:
 
     VkPipelineLayout                m_pipelineLayout{};
     VkPipeline                      m_pipeline{};
+
+    VkBuffer                        m_vertexBuffer{};
+    VkDeviceMemory                  m_vertexBufferMemory{};
 };
 
 #endif

@@ -187,12 +187,37 @@ static void OnFramebufferResize(GLFWwindow* window, int width, int height)
     renderer->SetFramebufferResizeFlag(true);
 }
 
+static uint32_t FindMemoryType(const uint32_t memTypeBitsRequirement, const VkMemoryPropertyFlags requiredProperties)
+{
+    VkPhysicalDeviceMemoryProperties memoryProperties{};
+    vkGetPhysicalDeviceMemoryProperties(g_vkCtx.physicalDevice, &memoryProperties);
+
+    for (uint32_t memIndex = 0; memIndex < memoryProperties.memoryTypeCount; memIndex++)
+    {
+        // Keep shifting 1 to left and compare it with the corresponding bit index (memIndex) of
+        // memoryTypeBitsRequirement value. isRequiredMemoryType = true when both are set.
+        // For example, when memTypeBitsRequirement = 1921 (decimal) / 0000 0111 1000 0001 (binary),
+        // isRequiredMemoryType = true when memIndex is 1, 7, 8, 9 and 10.
+        const bool isRequiredMemoryType = memTypeBitsRequirement & (1 << memIndex);
+
+        const bool hasRequiredProperties =
+            (memoryProperties.memoryTypes[memIndex].propertyFlags & requiredProperties) == requiredProperties;
+
+        if (isRequiredMemoryType && hasRequiredProperties)
+        {
+            return memIndex;
+        }
+    }
+
+    throw std::runtime_error("Failed to find suitable memory type!");
+}
+
 RenderBackend::RenderBackend()
 {
 #ifdef VALIDATION_OFF
-    m_enableValidation = false;
+    g_vkCtx.enableValidation = false;
 #else
-    m_enableValidation = true;
+    g_vkCtx.enableValidation = true;
 #endif
 }
 
@@ -229,6 +254,8 @@ void RenderBackend::Init()
     // Create Command Pool
     CreateCommandPool();
 
+    CreateVertexBuffer();
+
     // Create Command Buffer
     CreateCommandBuffers();
 
@@ -238,7 +265,7 @@ void RenderBackend::Init()
     extern idCVar r_vkDeviceLocalMemoryMB;
 
     VmaAllocatorCreateInfo createInfo = {};
-    createInfo.physicalDevice = m_physicalDevice;
+    createInfo.physicalDevice = g_vkCtx.physicalDevice;
     createInfo.device = vkcontext.device;
     createInfo.preferredSmallHeapBlockSize = r_vkHostVisibleMemoryMB.GetInteger() * 1024 * 1024;
     createInfo.preferredLargeHeapBlockSize = r_vkDeviceLocalMemoryMB.GetInteger() * 1024 * 1024;
@@ -279,6 +306,9 @@ void RenderBackend::Shutdown()
 {
     CleanupSwapchain();
 
+    vkDestroyBuffer(g_vkCtx.device, m_vertexBuffer, nullptr);
+    vkFreeMemory(g_vkCtx.device, m_vertexBufferMemory, nullptr);
+
     vkDestroyPipeline(g_vkCtx.device, m_pipeline, nullptr);
     vkDestroyPipelineLayout(g_vkCtx.device, m_pipelineLayout, nullptr);
     vkDestroyRenderPass(g_vkCtx.device, g_vkCtx.renderPass, nullptr);
@@ -305,8 +335,8 @@ void RenderBackend::Shutdown()
     // Destroy logical device
     vkDestroyDevice(g_vkCtx.device, nullptr);
     // Destroy window surface
-    vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
-    vkDestroyInstance(m_instance, nullptr);
+    vkDestroySurfaceKHR(g_vkCtx.instance, g_vkCtx.surface, nullptr);
+    vkDestroyInstance(g_vkCtx.instance, nullptr);
 
     glfwDestroyWindow(m_window);
     glfwTerminate();
@@ -371,7 +401,7 @@ void RenderBackend::CreateInstance()
         m_deviceExtensions.emplace_back(extension);
     }
 
-    if (m_enableValidation)
+    if (g_vkCtx.enableValidation)
     {
         for (const auto& extension : g_debugInstanceExtensions)
         {
@@ -394,7 +424,7 @@ void RenderBackend::CreateInstance()
     createInfo.enabledLayerCount = m_validationLayers.size();
     createInfo.ppEnabledLayerNames = m_validationLayers.data();
 
-    if (vkCreateInstance(&createInfo, nullptr, &m_instance) != VK_SUCCESS)
+    if (vkCreateInstance(&createInfo, nullptr, &g_vkCtx.instance) != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to create VK instance!\n");
     }
@@ -407,7 +437,7 @@ void RenderBackend::CreateSurface()
     createInfo.hwnd = glfwGetWin32Window(m_window);
     createInfo.hinstance = GetModuleHandle(nullptr);
 
-    if (vkCreateWin32SurfaceKHR(m_instance, &createInfo, nullptr, &m_surface) != VK_SUCCESS)
+    if (vkCreateWin32SurfaceKHR(g_vkCtx.instance, &createInfo, nullptr, &g_vkCtx.surface) != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to create window surface!\n");
     }
@@ -416,14 +446,14 @@ void RenderBackend::CreateSurface()
 void RenderBackend::SelectSuitablePhysicalDevice()
 {
     uint32_t numDevices = 0;
-    vkEnumeratePhysicalDevices(m_instance, &numDevices, nullptr);
+    vkEnumeratePhysicalDevices(g_vkCtx.instance, &numDevices, nullptr);
     if (numDevices == 0)
     {
         throw std::runtime_error("vkEnumeratePhysicalDevices returned zero devices.\n");
     }
 
     std::vector<VkPhysicalDevice> devices(numDevices);
-    if (vkEnumeratePhysicalDevices(m_instance, &numDevices, devices.data()) != VK_SUCCESS)
+    if (vkEnumeratePhysicalDevices(g_vkCtx.instance, &numDevices, devices.data()) != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to fetch devices!\n");
     }
@@ -470,19 +500,19 @@ void RenderBackend::SelectSuitablePhysicalDevice()
         }
 
         // Surface capabilities basically describes what kind of image you can render to the user
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu.device, m_surface, &gpu.surfaceCaps);
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu.device, g_vkCtx.surface, &gpu.surfaceCaps);
 
         {
             // Get the supported surface formats. This includes image format and color space.
             uint32_t numFormats;
-            vkGetPhysicalDeviceSurfaceFormatsKHR(gpu.device, m_surface, &numFormats, nullptr);
+            vkGetPhysicalDeviceSurfaceFormatsKHR(gpu.device, g_vkCtx.surface, &numFormats, nullptr);
             if (numFormats == 0)
             {
                 throw std::runtime_error("vkGetPhysicalDeviceSurfaceFormatsKHR returned zero formats.\n");
             }
 
             gpu.surfaceFormats.resize(numFormats);
-            vkGetPhysicalDeviceSurfaceFormatsKHR(gpu.device, m_surface, &numFormats, gpu.surfaceFormats.data());
+            vkGetPhysicalDeviceSurfaceFormatsKHR(gpu.device, g_vkCtx.surface, &numFormats, gpu.surfaceFormats.data());
             if (numFormats == 0)
             {
                 throw std::runtime_error("vkGetPhysicalDeviceSurfaceFormatsKHR returned zero formats.\n");
@@ -492,14 +522,14 @@ void RenderBackend::SelectSuitablePhysicalDevice()
         {
             // Get supported presentation modes
             uint32_t numPresentModes;
-            vkGetPhysicalDeviceSurfacePresentModesKHR(gpu.device, m_surface, &numPresentModes, nullptr);
+            vkGetPhysicalDeviceSurfacePresentModesKHR(gpu.device, g_vkCtx.surface, &numPresentModes, nullptr);
             if (numPresentModes == 0)
             {
                 throw std::runtime_error("vkGetPhysicalDeviceSurfacePresentModesKHR returned zero present modes.\n");
             }
 
             gpu.presentModes.resize(numPresentModes);
-            vkGetPhysicalDeviceSurfacePresentModesKHR(gpu.device, m_surface, &numPresentModes, gpu.presentModes.data());
+            vkGetPhysicalDeviceSurfacePresentModesKHR(gpu.device, g_vkCtx.surface, &numPresentModes, gpu.presentModes.data());
             if (numPresentModes == 0)
             {
                 throw std::runtime_error("vkGetPhysicalDeviceSurfacePresentModesKHR returned zero present modes.\n");
@@ -564,7 +594,7 @@ void RenderBackend::SelectSuitablePhysicalDevice()
             }
 
             VkBool32 supportPresentation = VK_FALSE;
-            vkGetPhysicalDeviceSurfaceSupportKHR(gpu.device, i, m_surface, &supportPresentation);
+            vkGetPhysicalDeviceSurfaceSupportKHR(gpu.device, i, g_vkCtx.surface, &supportPresentation);
             if (supportPresentation)
             {
                 presentIdx = i;
@@ -577,7 +607,7 @@ void RenderBackend::SelectSuitablePhysicalDevice()
         {
             g_vkCtx.graphicsFamilyIdx = graphicsIdx;
             g_vkCtx.presentFamilyIdx = presentIdx;
-            m_physicalDevice = gpu.device;
+            g_vkCtx.physicalDevice = gpu.device;
             g_vkCtx.gpu = gpu;
             std::cout << "Selected device: " << gpu.props.deviceName << std::endl;
 
@@ -623,7 +653,7 @@ void RenderBackend::CreateLogicalDeviceAndQueues()
     info.enabledExtensionCount = m_deviceExtensions.size();
     info.ppEnabledExtensionNames = m_deviceExtensions.data();
 
-    if (m_enableValidation)
+    if (g_vkCtx.enableValidation)
     {
         info.enabledLayerCount = m_validationLayers.size();
         info.ppEnabledLayerNames = m_validationLayers.data();
@@ -633,7 +663,7 @@ void RenderBackend::CreateLogicalDeviceAndQueues()
         info.enabledLayerCount = 0;
     }
 
-    if (vkCreateDevice(m_physicalDevice, &info, nullptr, &g_vkCtx.device) != VK_SUCCESS)
+    if (vkCreateDevice(g_vkCtx.physicalDevice, &info, nullptr, &g_vkCtx.device) != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to create the logical device!\n");
     }
@@ -680,6 +710,39 @@ void RenderBackend::CreateCommandPool()
     }
 }
 
+void RenderBackend::CreateVertexBuffer()
+{
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = sizeof(g_vertices[0]) * g_vertices.size();
+    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateBuffer(g_vkCtx.device, &bufferInfo, nullptr, &m_vertexBuffer) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create vertex buffer!");
+    }
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetBufferMemoryRequirements(g_vkCtx.device, m_vertexBuffer, &memoryRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memoryRequirements.size;
+    allocInfo.memoryTypeIndex = FindMemoryType(memoryRequirements.memoryTypeBits,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    if (vkAllocateMemory(g_vkCtx.device, &allocInfo, nullptr, &m_vertexBufferMemory) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to allocate vertex buffer memory!");
+    }
+
+    if (vkBindBufferMemory(g_vkCtx.device, m_vertexBuffer, m_vertexBufferMemory, 0) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed binding to vertex buffer memory!");
+    }
+}
+
 void RenderBackend::CreateCommandBuffers()
 {
     VkCommandBufferAllocateInfo commandBufferAllocateInfo{};
@@ -713,7 +776,7 @@ void RenderBackend::CreateSwapChain()
 
     VkSwapchainCreateInfoKHR info{};
     info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    info.surface = m_surface;
+    info.surface = g_vkCtx.surface;
     info.minImageCount = FRAMES_IN_FLIGHT;
     info.imageFormat = surfaceFormat.format;
     info.imageColorSpace = surfaceFormat.colorSpace;
@@ -756,7 +819,7 @@ void RenderBackend::CreateSwapChain()
 
     // Save off swapchain details
     m_swapchainFormat = surfaceFormat.format;
-    m_presentMode = presentMode;
+    g_vkCtx.presentMode = presentMode;
     m_swapchainExtent = extent;
 
     // Retrieve the swapchain images from the device.
@@ -801,7 +864,10 @@ void RenderBackend::CreateSwapChain()
         imageViewCreateInfo.subresourceRange.layerCount = 1;
         imageViewCreateInfo.flags = 0;
 
-        vkCreateImageView(g_vkCtx.device, &imageViewCreateInfo, nullptr, &m_swapchainViews[i]);
+        if (vkCreateImageView(g_vkCtx.device, &imageViewCreateInfo, nullptr, &m_swapchainViews[i]) != VK_SUCCESS)
+        {
+            throw std::runtime_error("vkCreateImageView failed!\n");
+        }
     }
 }
 
