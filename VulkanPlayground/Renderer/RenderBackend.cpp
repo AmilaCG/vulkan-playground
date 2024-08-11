@@ -293,10 +293,12 @@ void RenderBackend::Init()
     CreateVertexBuffer();
     CreateIndexBuffer();
     CreateUniformBuffers();
+    CreateDescriptorSetLayout();
+    CreateDescriptorPool();
+    CreateDescriptorSets();
     CreateCommandBuffers();
     CreateSwapChain();
     CreateRenderPass();
-    CreateDescriptorSetLayout();
     CreateGraphicsPipeline();
     CreateFrameBuffers();
 }
@@ -310,6 +312,8 @@ void RenderBackend::Shutdown()
         vkDestroyBuffer(g_vkCtx.device, m_uniformBuffers[i], nullptr);
         vkFreeMemory(g_vkCtx.device, m_uniformBufferMemories[i], nullptr);
     }
+
+    vkDestroyDescriptorPool(g_vkCtx.device, m_descriptorPool, nullptr);
 
     vkDestroyDescriptorSetLayout(g_vkCtx.device, m_descriptorSetLayout, nullptr);
 
@@ -785,6 +789,58 @@ void RenderBackend::CreateUniformBuffers()
     }
 }
 
+void RenderBackend::CreateDescriptorPool()
+{
+    VkDescriptorPoolSize poolSize{};
+    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSize.descriptorCount = FRAMES_IN_FLIGHT; // TODO: Do we need multiple descriptors?
+
+    VkDescriptorPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+    poolInfo.maxSets = FRAMES_IN_FLIGHT;
+
+    if (vkCreateDescriptorPool(g_vkCtx.device, &poolInfo, nullptr, &m_descriptorPool) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create descriptor pool!");
+    }
+}
+
+void RenderBackend::CreateDescriptorSets()
+{
+    const std::vector<VkDescriptorSetLayout> layouts(FRAMES_IN_FLIGHT, m_descriptorSetLayout);
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = m_descriptorPool;
+    allocInfo.descriptorSetCount = static_cast<uint32_t>(FRAMES_IN_FLIGHT);
+    allocInfo.pSetLayouts = layouts.data();
+
+    if (vkAllocateDescriptorSets(g_vkCtx.device, &allocInfo, m_descriptorSets.data()) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to allocate descriptor sets!");
+    }
+
+    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++)
+    {
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = m_uniformBuffers[i];
+        bufferInfo.offset = 0;
+        bufferInfo.range = sizeof(UniformBufferObject_t);
+
+        VkWriteDescriptorSet descriptorWrite{};
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = m_descriptorSets[i];
+        descriptorWrite.dstBinding = 0;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pBufferInfo = &bufferInfo;
+
+        vkUpdateDescriptorSets(g_vkCtx.device, 1, &descriptorWrite, 0, nullptr);
+    }
+}
+
 void RenderBackend::CreateCommandBuffers()
 {
     VkCommandBufferAllocateInfo commandBufferAllocateInfo{};
@@ -1005,7 +1061,7 @@ void RenderBackend::CreateGraphicsPipeline()
     rasterizationState.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizationState.lineWidth = 1.0f;
     rasterizationState.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizationState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizationState.depthBiasEnable = VK_FALSE;
 
     //Multisampling
@@ -1177,6 +1233,9 @@ void RenderBackend::RecordCommandbuffer(const VkCommandBuffer& commandBuffer, co
     scissor.offset = {0, 0};
     scissor.extent = m_swapchainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1,
+        &m_descriptorSets[m_currentFrame], 0, nullptr);
 
     vkCmdDrawIndexed(commandBuffer, g_indices.size(), 1, 0, 0, 0);
 

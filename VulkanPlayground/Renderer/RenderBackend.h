@@ -109,6 +109,8 @@ private:
     void CreateVertexBuffer();
     void CreateIndexBuffer();
     void CreateUniformBuffers();
+    void CreateDescriptorPool();
+    void CreateDescriptorSets();
     void CreateCommandBuffers();
     void CreateSwapChain();
     void CreateRenderPass();
@@ -146,6 +148,8 @@ private:
     std::vector<VkFramebuffer>      m_swapchainFramebuffers{FRAMES_IN_FLIGHT};
     bool                            m_frameBufferResized{false};
 
+    VkDescriptorPool                m_descriptorPool{};
+    std::vector<VkDescriptorSet>    m_descriptorSets{FRAMES_IN_FLIGHT};
     VkDescriptorSetLayout           m_descriptorSetLayout{};
     VkPipelineLayout                m_pipelineLayout{};
     VkPipeline                      m_pipeline{};
