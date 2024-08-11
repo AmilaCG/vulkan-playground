@@ -5,21 +5,23 @@
 #include <cstring>
 #include <unordered_set>
 
+namespace
+{
 constexpr uint32_t SCR_WIDTH = 1280;
 constexpr uint32_t SCR_HEIGHT = 720;
 
 const std::string VERT_SHADER_PATH = "vert.spv";
 const std::string FRAG_SHADER_PATH = "frag.spv";
 
-static const char* g_debugInstanceExtensions[] = {
+const char* g_debugInstanceExtensions[] = {
     VK_EXT_DEBUG_REPORT_EXTENSION_NAME
 };
 
-static const char* g_deviceExtensions[] = {
+const char* g_deviceExtensions[] = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
-static const char* g_validationLayers[] = {
+const char* g_validationLayers[] = {
     "VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor"
 };
 
@@ -31,7 +33,7 @@ const std::vector<Vertex_t> g_vertices = {
 
 VulkanContext_t g_vkCtx{};
 
-static void ValidateValidationLayers()
+void ValidateValidationLayers()
 {
     uint32_t instanceLayerCount = 0;
     vkEnumerateInstanceLayerProperties(&instanceLayerCount, nullptr);
@@ -57,7 +59,7 @@ static void ValidateValidationLayers()
     }
 }
 
-static bool CheckPhysicalDeviceExtensionSupport(GPUInfo_t& gpu, std::vector<const char*>& requiredExt)
+bool CheckPhysicalDeviceExtensionSupport(GPUInfo_t& gpu, std::vector<const char*>& requiredExt)
 {
     const int required = requiredExt.size();
     int available = 0;
@@ -77,7 +79,7 @@ static bool CheckPhysicalDeviceExtensionSupport(GPUInfo_t& gpu, std::vector<cons
     return available == required;
 }
 
-static VkSurfaceFormatKHR ChooseSurfaceFormat(std::vector<VkSurfaceFormatKHR>& formats)
+VkSurfaceFormatKHR ChooseSurfaceFormat(std::vector<VkSurfaceFormatKHR>& formats)
 {
     // If Vulkan returned an unknown format, then just force what we want
     if (formats.size() == 1 && formats[0].format == VK_FORMAT_UNDEFINED)
@@ -101,7 +103,7 @@ static VkSurfaceFormatKHR ChooseSurfaceFormat(std::vector<VkSurfaceFormatKHR>& f
     return formats[0];
 }
 
-static VkPresentModeKHR ChoosePresentMode(std::vector<VkPresentModeKHR>& modes)
+VkPresentModeKHR ChoosePresentMode(std::vector<VkPresentModeKHR>& modes)
 {
     // VK_PRESENT_MODE_FIFO_KHR    - Cap FPS at screen refresh rate
     // VK_PRESENT_MODE_MAILBOX_KHR - No FPS cap
@@ -119,7 +121,7 @@ static VkPresentModeKHR ChoosePresentMode(std::vector<VkPresentModeKHR>& modes)
     return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-static VkFormat ChooseSupportedFormat(
+VkFormat ChooseSupportedFormat(
     const VkPhysicalDevice& physicalDevice,
     VkFormat* formats,
     int numFormats,
@@ -147,7 +149,7 @@ static VkFormat ChooseSupportedFormat(
     return VK_FORMAT_UNDEFINED;
 }
 
-static void ReadShaderFile(const std::string& filename, std::vector<char>& buffer)
+void ReadShaderFile(const std::string& filename, std::vector<char>& buffer)
 {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
     if (!file.is_open())
@@ -168,7 +170,7 @@ static void ReadShaderFile(const std::string& filename, std::vector<char>& buffe
     file.close();
 }
 
-static VkShaderModule CreateShaderModule(const std::vector<char>& code)
+VkShaderModule CreateShaderModule(const std::vector<char>& code)
 {
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -181,13 +183,13 @@ static VkShaderModule CreateShaderModule(const std::vector<char>& code)
     return shaderModule;
 }
 
-static void OnFramebufferResize(GLFWwindow* window, int width, int height)
+void OnFramebufferResize(GLFWwindow* window, int width, int height)
 {
     const auto renderer = static_cast<RenderBackend*>(glfwGetWindowUserPointer(window));
     renderer->SetFramebufferResizeFlag(true);
 }
 
-static uint32_t FindMemoryType(const uint32_t memTypeBitsRequirement, const VkMemoryPropertyFlags requiredProperties)
+uint32_t FindMemoryType(const uint32_t memTypeBitsRequirement, const VkMemoryPropertyFlags requiredProperties)
 {
     VkPhysicalDeviceMemoryProperties memoryProperties{};
     vkGetPhysicalDeviceMemoryProperties(g_vkCtx.physicalDevice, &memoryProperties);
@@ -212,7 +214,7 @@ static uint32_t FindMemoryType(const uint32_t memTypeBitsRequirement, const VkMe
     throw std::runtime_error("Failed to find suitable memory type!");
 }
 
-static void CreateBuffer(
+void CreateBuffer(
     VkDeviceSize size,
     VkBufferUsageFlags usage,
     VkMemoryPropertyFlags properties,
@@ -221,8 +223,8 @@ static void CreateBuffer(
 {
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = sizeof(g_vertices[0]) * g_vertices.size();
-    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    bufferInfo.size = size;
+    bufferInfo.usage = usage;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     if (vkCreateBuffer(g_vkCtx.device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
@@ -236,19 +238,53 @@ static void CreateBuffer(
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memoryRequirements.size;
-    allocInfo.memoryTypeIndex = FindMemoryType(memoryRequirements.memoryTypeBits,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    allocInfo.memoryTypeIndex = FindMemoryType(memoryRequirements.memoryTypeBits, properties);
 
     if (vkAllocateMemory(g_vkCtx.device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
     {
-        throw std::runtime_error("Failed to allocate vertex buffer memory!");
+        throw std::runtime_error("Failed to allocate buffer memory!");
     }
 
     if (vkBindBufferMemory(g_vkCtx.device, buffer, bufferMemory, 0) != VK_SUCCESS)
     {
-        throw std::runtime_error("Failed binding to vertex buffer memory!");
+        throw std::runtime_error("Failed binding to buffer memory!");
     }
 }
+
+void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkCommandPool commandPool)
+{
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = commandPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(g_vkCtx.device, &allocInfo, &commandBuffer);
+
+    // Immediately start recording the command buffer
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    VkBufferCopy copyRegion{};
+    copyRegion.size = size;
+    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(g_vkCtx.graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(g_vkCtx.graphicsQueue);
+
+    vkFreeCommandBuffers(g_vkCtx.device, commandPool, 1, &commandBuffer);
+}
+} // namespace
 
 RenderBackend::RenderBackend()
 {
@@ -684,16 +720,31 @@ void RenderBackend::CreateCommandPool()
 void RenderBackend::CreateVertexBuffer()
 {
     const VkDeviceSize bufferSize = sizeof(g_vertices[0]) * g_vertices.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    // Staging buffer
     CreateBuffer(bufferSize,
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        stagingBuffer,
+        stagingBufferMemory);
+
+    void* data;
+    vkMapMemory(g_vkCtx.device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, g_vertices.data(), bufferSize);
+    vkUnmapMemory(g_vkCtx.device, stagingBufferMemory);
+
+    CreateBuffer(bufferSize,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         m_vertexBuffer,
         m_vertexBufferMemory);
 
-    void* data;
-    vkMapMemory(g_vkCtx.device, m_vertexBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, g_vertices.data(), bufferSize);
-    vkUnmapMemory(g_vkCtx.device, m_vertexBufferMemory);
+    CopyBuffer(stagingBuffer, m_vertexBuffer, bufferSize, m_commandPool);
+
+    vkDestroyBuffer(g_vkCtx.device, stagingBuffer, nullptr);
+    vkFreeMemory(g_vkCtx.device, stagingBufferMemory, nullptr);
 }
 
 void RenderBackend::CreateCommandBuffers()
