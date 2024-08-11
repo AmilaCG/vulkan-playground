@@ -26,9 +26,15 @@ const char* g_validationLayers[] = {
 };
 
 const std::vector<Vertex_t> g_vertices = {
-    {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, -0.5f} , {0.0f, 1.0f, 0.0f}},
+    {{0.5f, 0.5f}  , {0.0f, 0.0f, 1.0f}},
+    {{-0.5f, 0.5f} , {1.0f, 1.0f, 1.0f}}
+};
+
+// Supported data types are uint16_t and uint32_t
+const std::vector<uint16_t> g_indices = {
+    0, 1, 2, 2, 3, 0
 };
 
 VulkanContext_t g_vkCtx{};
@@ -311,6 +317,7 @@ void RenderBackend::Init()
     CreateSemaphores();
     CreateCommandPool();
     CreateVertexBuffer();
+    CreateIndexBuffer();
     CreateCommandBuffers();
     CreateSwapChain();
     CreateRenderPass();
@@ -321,6 +328,9 @@ void RenderBackend::Init()
 void RenderBackend::Shutdown()
 {
     CleanupSwapchain();
+
+    vkDestroyBuffer(g_vkCtx.device, m_indexBuffer, nullptr);
+    vkFreeMemory(g_vkCtx.device, m_indexBufferMemory, nullptr);
 
     vkDestroyBuffer(g_vkCtx.device, m_vertexBuffer, nullptr);
     vkFreeMemory(g_vkCtx.device, m_vertexBufferMemory, nullptr);
@@ -747,6 +757,35 @@ void RenderBackend::CreateVertexBuffer()
     vkFreeMemory(g_vkCtx.device, stagingBufferMemory, nullptr);
 }
 
+void RenderBackend::CreateIndexBuffer()
+{
+    const VkDeviceSize bufferSize = sizeof(g_indices[0]) * g_indices.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    CreateBuffer(bufferSize,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        stagingBuffer,
+        stagingBufferMemory);
+
+    void* data;
+    vkMapMemory(g_vkCtx.device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, g_indices.data(), bufferSize);
+    vkUnmapMemory(g_vkCtx.device, stagingBufferMemory);
+
+    CreateBuffer(bufferSize,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        m_indexBuffer,
+        m_indexBufferMemory);
+
+    CopyBuffer(stagingBuffer, m_indexBuffer, bufferSize, m_commandPool);
+
+    vkDestroyBuffer(g_vkCtx.device, stagingBuffer, nullptr);
+    vkFreeMemory(g_vkCtx.device, stagingBufferMemory, nullptr);
+}
+
 void RenderBackend::CreateCommandBuffers()
 {
     VkCommandBufferAllocateInfo commandBufferAllocateInfo{};
@@ -1103,6 +1142,8 @@ void RenderBackend::RecordCommandbuffer(const VkCommandBuffer& commandBuffer, co
     constexpr VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
+    vkCmdBindIndexBuffer(commandBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
@@ -1117,7 +1158,7 @@ void RenderBackend::RecordCommandbuffer(const VkCommandBuffer& commandBuffer, co
     scissor.extent = m_swapchainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    vkCmdDraw(commandBuffer, g_vertices.size(), 1, 0, 0);
+    vkCmdDrawIndexed(commandBuffer, g_indices.size(), 1, 0, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
 
