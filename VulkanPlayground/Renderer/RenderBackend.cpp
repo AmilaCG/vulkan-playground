@@ -8,8 +8,8 @@
 constexpr uint32_t SCR_WIDTH = 1280;
 constexpr uint32_t SCR_HEIGHT = 720;
 
-constexpr std::string VERT_SHADER_PATH = "vert.spv";
-constexpr std::string FRAG_SHADER_PATH = "frag.spv";
+const std::string VERT_SHADER_PATH = "vert.spv";
+const std::string FRAG_SHADER_PATH = "frag.spv";
 
 static const char* g_debugInstanceExtensions[] = {
     VK_EXT_DEBUG_REPORT_EXTENSION_NAME
