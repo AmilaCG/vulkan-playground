@@ -4,6 +4,8 @@
 #include <fstream>
 #include <cstring>
 #include <unordered_set>
+#include <chrono>
+#include <glm/gtc/matrix_transform.hpp>
 
 namespace
 {
@@ -318,9 +320,11 @@ void RenderBackend::Init()
     CreateCommandPool();
     CreateVertexBuffer();
     CreateIndexBuffer();
+    CreateUniformBuffers();
     CreateCommandBuffers();
     CreateSwapChain();
     CreateRenderPass();
+    CreateDescriptorSetLayout();
     CreateGraphicsPipeline();
     CreateFrameBuffers();
 }
@@ -328,6 +332,14 @@ void RenderBackend::Init()
 void RenderBackend::Shutdown()
 {
     CleanupSwapchain();
+
+    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++)
+    {
+        vkDestroyBuffer(g_vkCtx.device, m_uniformBuffers[i], nullptr);
+        vkFreeMemory(g_vkCtx.device, m_uniformBufferMemories[i], nullptr);
+    }
+
+    vkDestroyDescriptorSetLayout(g_vkCtx.device, m_descriptorSetLayout, nullptr);
 
     vkDestroyBuffer(g_vkCtx.device, m_indexBuffer, nullptr);
     vkFreeMemory(g_vkCtx.device, m_indexBufferMemory, nullptr);
@@ -786,6 +798,21 @@ void RenderBackend::CreateIndexBuffer()
     vkFreeMemory(g_vkCtx.device, stagingBufferMemory, nullptr);
 }
 
+void RenderBackend::CreateUniformBuffers()
+{
+    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++)
+    {
+        constexpr VkDeviceSize bufferSize = sizeof(UniformBufferObject_t);
+        CreateBuffer(bufferSize,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            m_uniformBuffers[i],
+            m_uniformBufferMemories[i]);
+
+        vkMapMemory(g_vkCtx.device, m_uniformBufferMemories[i], 0, bufferSize, 0, &m_uniformBufferMappings[i]);
+    }
+}
+
 void RenderBackend::CreateCommandBuffers()
 {
     VkCommandBufferAllocateInfo commandBufferAllocateInfo{};
@@ -960,6 +987,25 @@ void RenderBackend::CreateRenderPass()
     vkCreateRenderPass(g_vkCtx.device, &renderPassInfo, nullptr, &g_vkCtx.renderPass);
 }
 
+void RenderBackend::CreateDescriptorSetLayout()
+{
+    VkDescriptorSetLayoutBinding uboLayoutBinding{};
+    uboLayoutBinding.binding = 0;
+    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLayoutBinding.descriptorCount = 1;
+    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = 1;
+    layoutInfo.pBindings = &uboLayoutBinding;
+
+    if (vkCreateDescriptorSetLayout(g_vkCtx.device, &layoutInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create descriptor set layout!");
+    }
+}
+
 void RenderBackend::CreateGraphicsPipeline()
 {
     auto bindingDescription = Vertex_t::GetBindingDescription();
@@ -1066,6 +1112,8 @@ void RenderBackend::CreateGraphicsPipeline()
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &m_descriptorSetLayout;
 
     vkCreatePipelineLayout(g_vkCtx.device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout);
 
@@ -1190,6 +1238,8 @@ void RenderBackend::DrawFrame()
     vkResetCommandBuffer(m_commandBuffers[m_currentFrame], 0);
     RecordCommandbuffer(m_commandBuffers[m_currentFrame], imageIndex);
 
+    UpdateUniformBuffer(m_currentFrame);
+
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -1294,4 +1344,23 @@ VkExtent2D RenderBackend::ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& ca
     }
 
     return extent;
+}
+
+void RenderBackend::UpdateUniformBuffer(const uint32_t currentFrame)
+{
+    static auto startTime = std::chrono::high_resolution_clock::now();
+
+    const auto currentTime = std::chrono::high_resolution_clock::now();
+    const float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+    UniformBufferObject_t ubo{};
+    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.proj = glm::perspective(glm::radians(45.0f),
+        static_cast<float>(m_swapchainExtent.width) / static_cast<float>(m_swapchainExtent.height), 0.1f, 10.0f);
+    // GLM was originally designed for OpenGL, where the Y coordinate of the clip coordinates is inverted. The easiest
+    // way to compensate for that is to flip the sign on the scaling factor of the Y axis in the projection matrix.
+    ubo.proj[1][1] *= -1;
+
+    memcpy(m_uniformBufferMappings[currentFrame], &ubo, sizeof(ubo));
 }

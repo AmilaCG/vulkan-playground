@@ -81,6 +81,12 @@ struct Vertex_t
     }
 };
 
+struct UniformBufferObject_t {
+    glm::mat4 model;
+    glm::mat4 view;
+    glm::mat4 proj;
+};
+
 class RenderBackend
 {
 public:
@@ -102,9 +108,11 @@ private:
     void CreateCommandPool();
     void CreateVertexBuffer();
     void CreateIndexBuffer();
+    void CreateUniformBuffers();
     void CreateCommandBuffers();
     void CreateSwapChain();
     void CreateRenderPass();
+    void CreateDescriptorSetLayout();
     void CreateGraphicsPipeline();
     void CreateFrameBuffers();
     void RecordCommandbuffer(const VkCommandBuffer& commandBuffer, uint32_t imageIndex);
@@ -113,6 +121,7 @@ private:
     void CleanupSwapchain();
 
     VkExtent2D ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& caps);
+    void UpdateUniformBuffer(uint32_t currentFrame);
 
 private:
     GLFWwindow*                     m_window{nullptr};
@@ -137,6 +146,7 @@ private:
     std::vector<VkFramebuffer>      m_swapchainFramebuffers{FRAMES_IN_FLIGHT};
     bool                            m_frameBufferResized{false};
 
+    VkDescriptorSetLayout           m_descriptorSetLayout{};
     VkPipelineLayout                m_pipelineLayout{};
     VkPipeline                      m_pipeline{};
 
@@ -144,6 +154,10 @@ private:
     VkDeviceMemory                  m_vertexBufferMemory{};
     VkBuffer                        m_indexBuffer{};
     VkDeviceMemory                  m_indexBufferMemory{};
+
+    std::vector<VkBuffer>           m_uniformBuffers{FRAMES_IN_FLIGHT};
+    std::vector<VkDeviceMemory>     m_uniformBufferMemories{FRAMES_IN_FLIGHT};
+    std::vector<void*>              m_uniformBufferMappings{FRAMES_IN_FLIGHT};
 };
 
 #endif
