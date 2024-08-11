@@ -212,6 +212,44 @@ static uint32_t FindMemoryType(const uint32_t memTypeBitsRequirement, const VkMe
     throw std::runtime_error("Failed to find suitable memory type!");
 }
 
+static void CreateBuffer(
+    VkDeviceSize size,
+    VkBufferUsageFlags usage,
+    VkMemoryPropertyFlags properties,
+    VkBuffer& buffer,
+    VkDeviceMemory& bufferMemory)
+{
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = sizeof(g_vertices[0]) * g_vertices.size();
+    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateBuffer(g_vkCtx.device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create vertex buffer!");
+    }
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetBufferMemoryRequirements(g_vkCtx.device, buffer, &memoryRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memoryRequirements.size;
+    allocInfo.memoryTypeIndex = FindMemoryType(memoryRequirements.memoryTypeBits,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    if (vkAllocateMemory(g_vkCtx.device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to allocate vertex buffer memory!");
+    }
+
+    if (vkBindBufferMemory(g_vkCtx.device, buffer, bufferMemory, 0) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed binding to vertex buffer memory!");
+    }
+}
+
 RenderBackend::RenderBackend()
 {
 #ifdef VALIDATION_OFF
@@ -645,39 +683,16 @@ void RenderBackend::CreateCommandPool()
 
 void RenderBackend::CreateVertexBuffer()
 {
-    VkBufferCreateInfo bufferInfo{};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = sizeof(g_vertices[0]) * g_vertices.size();
-    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    if (vkCreateBuffer(g_vkCtx.device, &bufferInfo, nullptr, &m_vertexBuffer) != VK_SUCCESS)
-    {
-        throw std::runtime_error("Failed to create vertex buffer!");
-    }
-
-    VkMemoryRequirements memoryRequirements;
-    vkGetBufferMemoryRequirements(g_vkCtx.device, m_vertexBuffer, &memoryRequirements);
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memoryRequirements.size;
-    allocInfo.memoryTypeIndex = FindMemoryType(memoryRequirements.memoryTypeBits,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-    if (vkAllocateMemory(g_vkCtx.device, &allocInfo, nullptr, &m_vertexBufferMemory) != VK_SUCCESS)
-    {
-        throw std::runtime_error("Failed to allocate vertex buffer memory!");
-    }
-
-    if (vkBindBufferMemory(g_vkCtx.device, m_vertexBuffer, m_vertexBufferMemory, 0) != VK_SUCCESS)
-    {
-        throw std::runtime_error("Failed binding to vertex buffer memory!");
-    }
+    const VkDeviceSize bufferSize = sizeof(g_vertices[0]) * g_vertices.size();
+    CreateBuffer(bufferSize,
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        m_vertexBuffer,
+        m_vertexBufferMemory);
 
     void* data;
-    vkMapMemory(g_vkCtx.device, m_vertexBufferMemory, 0, bufferInfo.size, 0, &data);
-    memcpy(data, g_vertices.data(), bufferInfo.size);
+    vkMapMemory(g_vkCtx.device, m_vertexBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, g_vertices.data(), bufferSize);
     vkUnmapMemory(g_vkCtx.device, m_vertexBufferMemory);
 }
 
