@@ -69,8 +69,8 @@ void ValidateValidationLayers()
 
 bool CheckPhysicalDeviceExtensionSupport(GPUInfo_t& gpu, std::vector<const char*>& requiredExt)
 {
-    const int required = requiredExt.size();
-    int available = 0;
+    const size_t required = requiredExt.size();
+    size_t available = 0;
 
     for (const char* requiredExtension : requiredExt)
     {
@@ -127,34 +127,6 @@ VkPresentModeKHR ChoosePresentMode(std::vector<VkPresentModeKHR>& modes)
 
     // If we couldn't find desired mode, then default to FIFO which is always available
     return VK_PRESENT_MODE_FIFO_KHR;
-}
-
-VkFormat ChooseSupportedFormat(
-    const VkPhysicalDevice& physicalDevice,
-    VkFormat* formats,
-    int numFormats,
-    const VkImageTiling& tiling,
-    const VkFormatFeatureFlags& features)
-{
-    for ( int i = 0; i < numFormats; ++i )
-    {
-        const VkFormat& format = formats[i];
-        VkFormatProperties props;
-        vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
-
-        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
-        {
-            return format;
-        }
-
-        if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features)
-        {
-            return format;
-        }
-    }
-
-    throw std::runtime_error("Failed to find a supported format.\n");
-    return VK_FORMAT_UNDEFINED;
 }
 
 void ReadShaderFile(const std::string& filename, std::vector<char>& buffer)
