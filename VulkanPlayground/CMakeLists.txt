@@ -7,7 +7,7 @@ project(VulkanPlayground)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(VulkanPlayground
+add_executable(${PROJECT_NAME}
         main.cpp
         Renderer/RenderBackend.cpp)
 
@@ -19,27 +19,32 @@ find_package(glfw3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 
-target_link_libraries(VulkanPlayground PRIVATE
+target_link_libraries(${PROJECT_NAME} PRIVATE
         Vulkan::Vulkan
         glfw
         glm::glm-header-only)
 
+set(build_out_dir "$<TARGET_FILE_DIR:${PROJECT_NAME}>")
+set(shader_src_dir "${CMAKE_SOURCE_DIR}/shaders")
 if(WIN32)
+    set(shader_compiler_exe "$ENV{VULKAN_SDK}/Bin/glslc.exe")
+
     add_custom_target(CompileShaders ALL
-            COMMAND cmd /c $ENV{VULKAN_SDK}/Bin/glslc.exe ${CMAKE_SOURCE_DIR}/shaders/shader.vert -o vert.spv
-            COMMAND cmd /c $ENV{VULKAN_SDK}/Bin/glslc.exe ${CMAKE_SOURCE_DIR}/shaders/shader.frag -o frag.spv
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${build_out_dir}
+            COMMAND cmd /c ${shader_compiler_exe} ${shader_src_dir}/shader.vert -o ${build_out_dir}/vert.spv
+            COMMAND cmd /c ${shader_compiler_exe} ${shader_src_dir}/shader.frag -o ${build_out_dir}/frag.spv
     )
 
-    add_dependencies(VulkanPlayground CompileShaders)
+    add_dependencies(${PROJECT_NAME} CompileShaders)
 endif()
 
 add_custom_target(ClearAssets ALL
         COMMAND ${CMAKE_COMMAND} -E rm -rf
-        $<TARGET_FILE_DIR:VulkanPlayground>/Assets/)
+        ${build_out_dir}/Assets/)
 
 add_custom_target(CopyAssets ALL
         COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/Assets/ $<TARGET_FILE_DIR:VulkanPlayground>/Assets/)
+        ${CMAKE_SOURCE_DIR}/Assets/ ${build_out_dir}/Assets/)
 
-add_dependencies(VulkanPlayground CopyAssets)
+add_dependencies(${PROJECT_NAME} CopyAssets)
 add_dependencies(CopyAssets ClearAssets)
