@@ -17,6 +17,7 @@ add_executable(VulkanPlayground
 find_package(Vulkan REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
+find_package(Stb REQUIRED)
 
 target_link_libraries(VulkanPlayground PRIVATE
         Vulkan::Vulkan
