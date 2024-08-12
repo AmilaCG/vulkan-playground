@@ -106,6 +106,7 @@ private:
     void CreateLogicalDeviceAndQueues();
     void CreateSemaphores();
     void CreateCommandPool();
+    void CreateTextureImage();
     void CreateVertexBuffer();
     void CreateIndexBuffer();
     void CreateUniformBuffers();

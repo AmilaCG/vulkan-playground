@@ -26,8 +26,20 @@ target_link_libraries(VulkanPlayground PRIVATE
 
 if(WIN32)
     add_custom_target(CompileShaders ALL
-            COMMAND cmd /c $ENV{VULKAN_SDK}/Bin/glslc.exe ${CMAKE_SOURCE_DIR}/shaders/shader.vert -o  vert.spv
-            COMMAND cmd /c $ENV{VULKAN_SDK}/Bin/glslc.exe ${CMAKE_SOURCE_DIR}/shaders/shader.frag -o  frag.spv
+            COMMAND cmd /c $ENV{VULKAN_SDK}/Bin/glslc.exe ${CMAKE_SOURCE_DIR}/shaders/shader.vert -o vert.spv
+            COMMAND cmd /c $ENV{VULKAN_SDK}/Bin/glslc.exe ${CMAKE_SOURCE_DIR}/shaders/shader.frag -o frag.spv
     )
+
     add_dependencies(VulkanPlayground CompileShaders)
 endif()
+
+add_custom_target(ClearAssets ALL
+        COMMAND ${CMAKE_COMMAND} -E rm -rf
+        $<TARGET_FILE_DIR:VulkanPlayground>/Assets/)
+
+add_custom_target(CopyAssets ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/Assets/ $<TARGET_FILE_DIR:VulkanPlayground>/Assets/)
+
+add_dependencies(VulkanPlayground CopyAssets)
+add_dependencies(CopyAssets ClearAssets)

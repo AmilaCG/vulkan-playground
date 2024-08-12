@@ -6,6 +6,8 @@
 #include <unordered_set>
 #include <chrono>
 #include <glm/gtc/matrix_transform.hpp>
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 
 namespace
 {
@@ -14,6 +16,8 @@ constexpr uint32_t SCR_HEIGHT = 720;
 
 const std::string VERT_SHADER_PATH = "vert.spv";
 const std::string FRAG_SHADER_PATH = "frag.spv";
+
+const char* TEXTURE_IMG_PATH = "Assets/Textures/texture.jpg";
 
 const char* g_debugInstanceExtensions[] = {
     VK_EXT_DEBUG_REPORT_EXTENSION_NAME
@@ -290,6 +294,7 @@ void RenderBackend::Init()
     CreateLogicalDeviceAndQueues();
     CreateSemaphores();
     CreateCommandPool();
+    CreateTextureImage();
     CreateVertexBuffer();
     CreateIndexBuffer();
     CreateUniformBuffers();
@@ -712,6 +717,18 @@ void RenderBackend::CreateCommandPool()
     if (vkCreateCommandPool(g_vkCtx.device, &commandPoolCreateInfo, nullptr, &m_commandPool) != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to create the command pool!\n");
+    }
+}
+
+void RenderBackend::CreateTextureImage()
+{
+    int texWidth, texHeight, texChannels;
+    const stbi_uc* pixels = stbi_load(TEXTURE_IMG_PATH, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    VkDeviceSize imageSize = texWidth * texHeight * 4;
+
+    if (!pixels)
+    {
+        throw std::runtime_error("failed to load texture image!");
     }
 }
 
