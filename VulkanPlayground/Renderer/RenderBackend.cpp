@@ -176,7 +176,7 @@ void OnFramebufferResize(GLFWwindow* window, int width, int height)
 uint32_t FindMemoryType(const uint32_t memTypeBitsRequirement, const VkMemoryPropertyFlags requiredProperties)
 {
     VkPhysicalDeviceMemoryProperties memoryProperties{};
-    vkGetPhysicalDeviceMemoryProperties(g_vkCtx.physicalDevice, &memoryProperties);
+    vkGetPhysicalDeviceMemoryProperties(g_vkCtx.gpu.device, &memoryProperties);
 
     for (uint32_t memIndex = 0; memIndex < memoryProperties.memoryTypeCount; memIndex++)
     {
@@ -268,6 +268,52 @@ void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkCom
 
     vkFreeCommandBuffers(g_vkCtx.device, commandPool, 1, &commandBuffer);
 }
+
+void CreateImage(
+    uint32_t width,
+    uint32_t height,
+    VkFormat format,
+    VkImageTiling tiling,
+    VkImageUsageFlags usage,
+    VkMemoryPropertyFlags properties,
+    VkImage& image,
+    VkDeviceMemory& imageMemory)
+{
+    VkImageCreateInfo imageInfo{};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.extent.width = width;
+    imageInfo.extent.height = height;
+    imageInfo.extent.depth = 1;
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.format = format;
+    imageInfo.tiling = tiling;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = usage;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateImage(g_vkCtx.device, &imageInfo, nullptr, &image) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create image!");
+    }
+
+    VkMemoryRequirements memRequirements;
+    vkGetImageMemoryRequirements(g_vkCtx.device, image, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties);
+
+    if (vkAllocateMemory(g_vkCtx.device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to allocate image memory!");
+    }
+
+    vkBindImageMemory(g_vkCtx.device, image, imageMemory, 0);
+}
 } // namespace
 
 RenderBackend::RenderBackend()
@@ -311,6 +357,9 @@ void RenderBackend::Init()
 void RenderBackend::Shutdown()
 {
     CleanupSwapchain();
+
+    vkDestroyImage(g_vkCtx.device, m_textureImage, nullptr);
+    vkFreeMemory(g_vkCtx.device, m_textureImageMemory, nullptr);
 
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++)
     {
@@ -621,7 +670,7 @@ void RenderBackend::SelectSuitablePhysicalDevice()
         {
             g_vkCtx.graphicsFamilyIdx = graphicsIdx;
             g_vkCtx.presentFamilyIdx = presentIdx;
-            g_vkCtx.physicalDevice = gpu.device;
+            g_vkCtx.gpu.device = gpu.device;
             g_vkCtx.gpu = gpu;
             std::cout << "Selected device: " << gpu.props.deviceName << std::endl;
 
@@ -677,7 +726,7 @@ void RenderBackend::CreateLogicalDeviceAndQueues()
         info.enabledLayerCount = 0;
     }
 
-    if (vkCreateDevice(g_vkCtx.physicalDevice, &info, nullptr, &g_vkCtx.device) != VK_SUCCESS)
+    if (vkCreateDevice(g_vkCtx.gpu.device, &info, nullptr, &g_vkCtx.device) != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to create the logical device!\n");
     }
@@ -723,13 +772,38 @@ void RenderBackend::CreateCommandPool()
 void RenderBackend::CreateTextureImage()
 {
     int texWidth, texHeight, texChannels;
-    const stbi_uc* pixels = stbi_load(TEXTURE_IMG_PATH, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-    VkDeviceSize imageSize = texWidth * texHeight * 4;
+    stbi_uc* pixels = stbi_load(TEXTURE_IMG_PATH, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    const VkDeviceSize imageSize = texWidth * texHeight * 4;
 
     if (!pixels)
     {
         throw std::runtime_error("failed to load texture image!");
     }
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+
+    CreateBuffer(imageSize,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        stagingBuffer,
+        stagingBufferMemory);
+
+    void* data;
+    vkMapMemory(g_vkCtx.device, stagingBufferMemory, 0, imageSize, 0, &data);
+    memcpy(data, pixels, imageSize);
+    vkUnmapMemory(g_vkCtx.device, stagingBufferMemory);
+
+    stbi_image_free(pixels);
+
+    CreateImage(texWidth,
+        texHeight,
+        VK_FORMAT_R8G8B8A8_SRGB,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        m_textureImage,
+        m_textureImageMemory);
 }
 
 void RenderBackend::CreateVertexBuffer()

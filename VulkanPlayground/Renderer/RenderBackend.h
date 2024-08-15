@@ -1,5 +1,4 @@
-#ifndef RENDERBACKEND_H
-#define RENDERBACKEND_H
+#pragma once
 
 #define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
@@ -35,7 +34,6 @@ struct VulkanContext_t
 
     VkInstance                  instance{};
     VkDevice                    device{};
-    VkPhysicalDevice            physicalDevice{};
     int                         graphicsFamilyIdx{};
     int                         presentFamilyIdx{};
     VkQueue                     graphicsQueue{};
@@ -159,10 +157,10 @@ private:
     VkDeviceMemory                  m_vertexBufferMemory{};
     VkBuffer                        m_indexBuffer{};
     VkDeviceMemory                  m_indexBufferMemory{};
+    VkImage                         m_textureImage{};
+    VkDeviceMemory                  m_textureImageMemory{};
 
     std::vector<VkBuffer>           m_uniformBuffers{FRAMES_IN_FLIGHT};
     std::vector<VkDeviceMemory>     m_uniformBufferMemories{FRAMES_IN_FLIGHT};
     std::vector<void*>              m_uniformBufferMappings{FRAMES_IN_FLIGHT};
 };
-
-#endif
