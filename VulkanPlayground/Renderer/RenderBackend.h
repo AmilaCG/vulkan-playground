@@ -123,6 +123,9 @@ private:
 
     VkExtent2D ChooseSurfaceExtent(const VkSurfaceCapabilitiesKHR& caps);
     void UpdateUniformBuffer(uint32_t currentFrame);
+    void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkCommandPool commandPool);
+    VkCommandBuffer BeginSingleTimeCommands();
+    void EndSingleTimeCommands(const VkCommandBuffer& commandBuffer);
 
 private:
     GLFWwindow*                     m_window{nullptr};
