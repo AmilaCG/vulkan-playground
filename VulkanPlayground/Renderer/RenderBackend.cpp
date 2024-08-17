@@ -324,6 +324,8 @@ void RenderBackend::Shutdown()
 {
     CleanupSwapchain();
 
+    vkDestroyImageView(g_vkCtx.device, m_textureImageView, nullptr);
+
     vkDestroyImage(g_vkCtx.device, m_textureImage, nullptr);
     vkFreeMemory(g_vkCtx.device, m_textureImageMemory, nullptr);
 
@@ -790,6 +792,11 @@ void RenderBackend::CreateTextureImage()
     vkFreeMemory(g_vkCtx.device, stagingBufferMemory, nullptr);
 }
 
+void RenderBackend::CreateTextureImageView()
+{
+    m_textureImageView = CreateImageView(m_textureImage, VK_FORMAT_R8G8B8A8_SRGB);
+}
+
 void RenderBackend::CreateVertexBuffer()
 {
     const VkDeviceSize bufferSize = sizeof(g_vertices[0]) * g_vertices.size();
@@ -1016,31 +1023,7 @@ void RenderBackend::CreateSwapChain()
     // ( how you perceive ) the image.
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++)
     {
-        VkImageViewCreateInfo imageViewCreateInfo{};
-        imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        imageViewCreateInfo.image = m_swapchainImages[i];
-        imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        imageViewCreateInfo.format = m_swapchainFormat;
-
-        // We don't need to swizzle (swap around) any of the color channels
-        imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_R;
-        imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_G;
-        imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_B;
-        imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_A;
-
-        // The subresourceRange field describes what the image's purpose is and which part of
-        // the image should be accessed
-        imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-        imageViewCreateInfo.subresourceRange.levelCount = 1;
-        imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-        imageViewCreateInfo.subresourceRange.layerCount = 1;
-        imageViewCreateInfo.flags = 0;
-
-        if (vkCreateImageView(g_vkCtx.device, &imageViewCreateInfo, nullptr, &m_swapchainViews[i]) != VK_SUCCESS)
-        {
-            throw std::runtime_error("vkCreateImageView failed!\n");
-        }
+        m_swapchainViews[i] = CreateImageView(m_swapchainImages[i], m_swapchainFormat);
     }
 }
 
@@ -1602,4 +1585,35 @@ void RenderBackend::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t w
         &region);
 
     EndSingleTimeCommands(commandBuffer);
+}
+
+VkImageView RenderBackend::CreateImageView(const VkImage& image, const VkFormat& format)
+{
+    VkImageViewCreateInfo viewInfo{};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image = image;
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.format = format;
+
+    // We don't need to swizzle (swap around) any of the color channels
+    viewInfo.components.r = VK_COMPONENT_SWIZZLE_R;
+    viewInfo.components.g = VK_COMPONENT_SWIZZLE_G;
+    viewInfo.components.b = VK_COMPONENT_SWIZZLE_B;
+    viewInfo.components.a = VK_COMPONENT_SWIZZLE_A;
+
+    // The subresourceRange field describes what the image's purpose is and which part of
+    // the image should be accessed
+    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.baseMipLevel = 0;
+    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    viewInfo.subresourceRange.layerCount = 1;
+
+    VkImageView imageView{};
+    if (vkCreateImageView(g_vkCtx.device, &viewInfo, nullptr, &imageView) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create texture image view!");
+    }
+
+    return imageView;
 }

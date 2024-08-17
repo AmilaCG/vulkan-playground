@@ -105,6 +105,7 @@ private:
     void CreateSemaphores();
     void CreateCommandPool();
     void CreateTextureImage();
+    void CreateTextureImageView();
     void CreateVertexBuffer();
     void CreateIndexBuffer();
     void CreateUniformBuffers();
@@ -128,6 +129,7 @@ private:
     void EndSingleTimeCommands(const VkCommandBuffer& commandBuffer);
     void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
     void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+    VkImageView CreateImageView(const VkImage& image, const VkFormat& format);
 
 private:
     GLFWwindow*                     m_window{nullptr};
@@ -163,6 +165,7 @@ private:
     VkBuffer                        m_indexBuffer{};
     VkDeviceMemory                  m_indexBufferMemory{};
     VkImage                         m_textureImage{};
+    VkImageView                     m_textureImageView{};
     VkDeviceMemory                  m_textureImageMemory{};
 
     std::vector<VkBuffer>           m_uniformBuffers{FRAMES_IN_FLIGHT};
