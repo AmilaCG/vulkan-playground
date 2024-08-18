@@ -51,6 +51,7 @@ struct Vertex_t
 {
     glm::vec2 pos;
     glm::vec3 color;
+    glm::vec2 texCoord;
 
     static VkVertexInputBindingDescription GetBindingDescription()
     {
@@ -62,9 +63,9 @@ struct Vertex_t
         return bindingDescription;
     }
 
-    static std::array<VkVertexInputAttributeDescription, 2> GetAttributeDescriptions()
+    static std::array<VkVertexInputAttributeDescription, 3> GetAttributeDescriptions()
     {
-        std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+        std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
         attributeDescriptions[0].binding = 0; // Location directive of the input in vertex shader
         attributeDescriptions[0].location = 0;
         attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
@@ -74,6 +75,11 @@ struct Vertex_t
         attributeDescriptions[1].location = 1;
         attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
         attributeDescriptions[1].offset = offsetof(Vertex_t, color);
+
+        attributeDescriptions[2].binding = 0;
+        attributeDescriptions[2].location = 2;
+        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+        attributeDescriptions[2].offset = offsetof(Vertex_t, texCoord);
 
         return attributeDescriptions;
     }

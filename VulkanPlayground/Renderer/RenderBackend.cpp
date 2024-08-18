@@ -32,10 +32,10 @@ const char* g_validationLayers[] = {
 };
 
 const std::vector<Vertex_t> g_vertices = {
-    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-    {{0.5f, -0.5f} , {0.0f, 1.0f, 0.0f}},
-    {{0.5f, 0.5f}  , {0.0f, 0.0f, 1.0f}},
-    {{-0.5f, 0.5f} , {1.0f, 1.0f, 1.0f}}
+    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+    {{0.5f, -0.5f} , {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, 0.5f}  , {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+    {{-0.5f, 0.5f} , {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
 };
 
 // Supported data types are uint16_t and uint32_t
@@ -307,6 +307,8 @@ void RenderBackend::Init()
     CreateSemaphores();
     CreateCommandPool();
     CreateTextureImage();
+    CreateTextureImageView();
+    CreateTextureSampler();
     CreateVertexBuffer();
     CreateIndexBuffer();
     CreateUniformBuffers();
@@ -875,14 +877,20 @@ void RenderBackend::CreateUniformBuffers()
 
 void RenderBackend::CreateDescriptorPool()
 {
-    VkDescriptorPoolSize poolSize{};
-    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSize.descriptorCount = FRAMES_IN_FLIGHT; // TODO: Do we need multiple descriptors?
+    VkDescriptorPoolSize poolSizeUniform{};
+    poolSizeUniform.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSizeUniform.descriptorCount = FRAMES_IN_FLIGHT;
+
+    VkDescriptorPoolSize poolSizeSampler{};
+    poolSizeSampler.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSizeSampler.descriptorCount = FRAMES_IN_FLIGHT;
+
+    std::array poolSizes = {poolSizeUniform, poolSizeSampler};
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.poolSizeCount = 1;
-    poolInfo.pPoolSizes = &poolSize;
+    poolInfo.poolSizeCount = poolSizes.size();
+    poolInfo.pPoolSizes = poolSizes.data();
     poolInfo.maxSets = FRAMES_IN_FLIGHT;
 
     if (vkCreateDescriptorPool(g_vkCtx.device, &poolInfo, nullptr, &m_descriptorPool) != VK_SUCCESS)
@@ -912,16 +920,32 @@ void RenderBackend::CreateDescriptorSets()
         bufferInfo.offset = 0;
         bufferInfo.range = sizeof(UniformBufferObject_t);
 
-        VkWriteDescriptorSet descriptorWrite{};
-        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = m_descriptorSets[i];
-        descriptorWrite.dstBinding = 0;
-        descriptorWrite.dstArrayElement = 0;
-        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrite.descriptorCount = 1;
-        descriptorWrite.pBufferInfo = &bufferInfo;
+        VkDescriptorImageInfo imageInfo{};
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.imageView = m_textureImageView;
+        imageInfo.sampler = m_textureSampler;
 
-        vkUpdateDescriptorSets(g_vkCtx.device, 1, &descriptorWrite, 0, nullptr);
+        VkWriteDescriptorSet descriptorWriteUniform{};
+        descriptorWriteUniform.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWriteUniform.dstSet = m_descriptorSets[i];
+        descriptorWriteUniform.dstBinding = 0;
+        descriptorWriteUniform.dstArrayElement = 0;
+        descriptorWriteUniform.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWriteUniform.descriptorCount = 1;
+        descriptorWriteUniform.pBufferInfo = &bufferInfo;
+
+        VkWriteDescriptorSet descriptorWriteSampler{};
+        descriptorWriteSampler.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWriteSampler.dstSet = m_descriptorSets[i];
+        descriptorWriteSampler.dstBinding = 1;
+        descriptorWriteSampler.dstArrayElement = 0;
+        descriptorWriteSampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorWriteSampler.descriptorCount = 1;
+        descriptorWriteSampler.pImageInfo = &imageInfo;
+
+        std::array descriptorWrites = {descriptorWriteUniform, descriptorWriteSampler};
+
+        vkUpdateDescriptorSets(g_vkCtx.device, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
     }
 }
 
@@ -1083,10 +1107,18 @@ void RenderBackend::CreateDescriptorSetLayout()
     uboLayoutBinding.descriptorCount = 1;
     uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
+    VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+    samplerLayoutBinding.binding = 1;
+    samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    samplerLayoutBinding.descriptorCount = 1;
+    samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    const std::array bindings = {uboLayoutBinding, samplerLayoutBinding};
+
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = 1;
-    layoutInfo.pBindings = &uboLayoutBinding;
+    layoutInfo.bindingCount = bindings.size();
+    layoutInfo.pBindings = bindings.data();
 
     if (vkCreateDescriptorSetLayout(g_vkCtx.device, &layoutInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS)
     {
