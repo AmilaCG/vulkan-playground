@@ -130,6 +130,7 @@ private:
     void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
     void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
     VkImageView CreateImageView(const VkImage& image, const VkFormat& format);
+    void CreateTextureSampler();
 
 private:
     GLFWwindow*                     m_window{nullptr};
@@ -167,6 +168,7 @@ private:
     VkImage                         m_textureImage{};
     VkImageView                     m_textureImageView{};
     VkDeviceMemory                  m_textureImageMemory{};
+    VkSampler                       m_textureSampler{};
 
     std::vector<VkBuffer>           m_uniformBuffers{FRAMES_IN_FLIGHT};
     std::vector<VkDeviceMemory>     m_uniformBufferMemories{FRAMES_IN_FLIGHT};
