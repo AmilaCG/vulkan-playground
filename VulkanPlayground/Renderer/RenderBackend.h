@@ -9,7 +9,9 @@
 #include <vector>
 #include <array>
 #include <vulkan/vulkan_core.h>
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 // Everything that is needed by the backend needs to be double buffered to allow it to run in
 // parallel on a dual cpu machine
@@ -110,6 +112,7 @@ private:
     void CreateLogicalDeviceAndQueues();
     void CreateSemaphores();
     void CreateCommandPool();
+    void CreateDepthResources();
     void CreateTextureImage();
     void CreateTextureImageView();
     void CreateVertexBuffer();
@@ -135,7 +138,7 @@ private:
     void EndSingleTimeCommands(const VkCommandBuffer& commandBuffer);
     void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
     void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-    VkImageView CreateImageView(const VkImage& image, const VkFormat& format);
+    VkImageView CreateImageView(const VkImage& image, const VkFormat& format, VkImageAspectFlags aspectFlags);
     void CreateTextureSampler();
 
 private:
@@ -175,6 +178,10 @@ private:
     VkImageView                     m_textureImageView{};
     VkDeviceMemory                  m_textureImageMemory{};
     VkSampler                       m_textureSampler{};
+
+    VkImage                         m_depthImage;
+    VkDeviceMemory                  m_depthImageMemory;
+    VkImageView                     m_depthImageView;
 
     std::vector<VkBuffer>           m_uniformBuffers{FRAMES_IN_FLIGHT};
     std::vector<VkDeviceMemory>     m_uniformBufferMemories{FRAMES_IN_FLIGHT};

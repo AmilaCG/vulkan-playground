@@ -286,6 +286,43 @@ void CreateImage(
 
     vkBindImageMemory(g_vkCtx.device, image, imageMemory, 0);
 }
+
+VkFormat FindSupportedFormat(
+    const std::vector<VkFormat>& candidates,
+    VkImageTiling tiling,
+    VkFormatFeatureFlags features)
+{
+    for (VkFormat format : candidates)
+    {
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(g_vkCtx.gpu.device, format, &props);
+
+        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
+        {
+            return format;
+        }
+        if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features)
+        {
+            return format;
+        }
+
+        throw std::runtime_error("Failed to find supported format!");
+    }
+}
+
+VkFormat FindDepthFormat()
+{
+    return FindSupportedFormat(
+        {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+    );
+}
+
+bool HasStencilComponent(VkFormat format)
+{
+    return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+}
 } // namespace
 
 RenderBackend::RenderBackend()
@@ -312,6 +349,8 @@ void RenderBackend::Init()
     CreateLogicalDeviceAndQueues();
     CreateSemaphores();
     CreateCommandPool();
+    CreateSwapChain();
+    CreateDepthResources();
     CreateTextureImage();
     CreateTextureImageView();
     CreateTextureSampler();
@@ -322,7 +361,6 @@ void RenderBackend::Init()
     CreateDescriptorPool();
     CreateDescriptorSets();
     CreateCommandBuffers();
-    CreateSwapChain();
     CreateRenderPass();
     CreateGraphicsPipeline();
     CreateFrameBuffers();
@@ -747,6 +785,20 @@ void RenderBackend::CreateCommandPool()
     }
 }
 
+void RenderBackend::CreateDepthResources()
+{
+    const VkFormat depthFormat = FindDepthFormat();
+    CreateImage(m_swapchainExtent.width, m_swapchainExtent.height,
+        depthFormat,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        m_depthImage,
+        m_depthImageMemory);
+
+    m_depthImageView = CreateImageView(m_depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+}
+
 void RenderBackend::CreateTextureImage()
 {
     int texWidth, texHeight, texChannels;
@@ -804,7 +856,7 @@ void RenderBackend::CreateTextureImage()
 
 void RenderBackend::CreateTextureImageView()
 {
-    m_textureImageView = CreateImageView(m_textureImage, VK_FORMAT_R8G8B8A8_SRGB);
+    m_textureImageView = CreateImageView(m_textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
 void RenderBackend::CreateVertexBuffer()
@@ -1055,7 +1107,7 @@ void RenderBackend::CreateSwapChain()
     // ( how you perceive ) the image.
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++)
     {
-        m_swapchainViews[i] = CreateImageView(m_swapchainImages[i], m_swapchainFormat);
+        m_swapchainViews[i] = CreateImageView(m_swapchainImages[i], m_swapchainFormat, VK_IMAGE_ASPECT_COLOR_BIT);
     }
 }
 
@@ -1627,7 +1679,7 @@ void RenderBackend::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t w
     EndSingleTimeCommands(commandBuffer);
 }
 
-VkImageView RenderBackend::CreateImageView(const VkImage& image, const VkFormat& format)
+VkImageView RenderBackend::CreateImageView(const VkImage& image, const VkFormat& format, VkImageAspectFlags aspectFlags)
 {
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -1643,7 +1695,7 @@ VkImageView RenderBackend::CreateImageView(const VkImage& image, const VkFormat&
 
     // The subresourceRange field describes what the image's purpose is and which part of
     // the image should be accessed
-    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.aspectMask = aspectFlags;
     viewInfo.subresourceRange.baseMipLevel = 0;
     viewInfo.subresourceRange.levelCount = 1;
     viewInfo.subresourceRange.baseArrayLayer = 0;
