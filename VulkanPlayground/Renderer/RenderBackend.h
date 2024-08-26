@@ -115,6 +115,7 @@ private:
     void CreateDepthResources();
     void CreateTextureImage();
     void CreateTextureImageView();
+    void LoadModel();
     void CreateVertexBuffer();
     void CreateIndexBuffer();
     void CreateUniformBuffers();
@@ -170,6 +171,8 @@ private:
     VkPipelineLayout                m_pipelineLayout{};
     VkPipeline                      m_pipeline{};
 
+    std::vector<Vertex_t>           m_vertices;
+    std::vector<uint32_t>           m_indices;
     VkBuffer                        m_vertexBuffer{};
     VkDeviceMemory                  m_vertexBufferMemory{};
     VkBuffer                        m_indexBuffer{};

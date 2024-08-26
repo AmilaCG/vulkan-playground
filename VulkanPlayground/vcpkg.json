@@ -8,5 +8,7 @@
       "name": "glm"
     }, {
       "name": "stb"
+    }, {
+      "name": "tinyobjloader"
     } ]
 }
