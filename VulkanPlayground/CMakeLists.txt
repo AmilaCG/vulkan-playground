@@ -8,26 +8,37 @@ project(VulkanPlayground)
 set(CMAKE_CXX_STANDARD 20)
 
 add_executable(${PROJECT_NAME}
-        main.cpp
-        Renderer/RenderBackend.cpp)
+        main.cpp)
 
 # Uncomment following definition to disable validation layers
 #add_definitions(-DVALIDATION_OFF)
 
 find_package(Vulkan REQUIRED)
-find_package(glfw3 CONFIG REQUIRED)
+find_package(SDL2 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 find_package(tinyobjloader CONFIG REQUIRED)
+find_package(fastgltf CONFIG REQUIRED)
+#find_package(fmt CONFIG REQUIRED)
+find_package(vk-bootstrap CONFIG REQUIRED)
+find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+find_package(imgui CONFIG REQUIRED)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
         Vulkan::Vulkan
-        glfw
+        $<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
+        $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
         glm::glm-header-only
-        tinyobjloader::tinyobjloader)
+        tinyobjloader::tinyobjloader
+        fastgltf::fastgltf
+#        fmt::fmt-header-only
+        vk-bootstrap::vk-bootstrap
+#        vk-bootstrap::vk-bootstrap-compiler-warnings
+        GPUOpen::VulkanMemoryAllocator
+        imgui::imgui)
 
 set(build_out_dir "$<TARGET_FILE_DIR:${PROJECT_NAME}>")
-set(shader_src_dir "${CMAKE_SOURCE_DIR}/shaders")
+set(shader_src_dir "${CMAKE_SOURCE_DIR}/Shaders")
 if(WIN32)
     set(shader_compiler_exe "$ENV{VULKAN_SDK}/Bin/glslc.exe")
 

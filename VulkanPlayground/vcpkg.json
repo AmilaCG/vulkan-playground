@@ -3,12 +3,23 @@
   "version-string" : "1.0.0",
   "builtin-baseline" : "e590c2b30c08caf1dd8d612ec602a003f9784b7d",
   "dependencies": [ {
-      "name": "glfw3"
+      "name": "sdl2"
     }, {
       "name": "glm"
     }, {
       "name": "stb"
     }, {
       "name": "tinyobjloader"
+    }, {
+      "name": "vk-bootstrap"
+    }, {
+      "name": "vulkan-memory-allocator"
+    }, {
+      "name": "imgui",
+      "features": ["vulkan-binding", "sdl2-binding"]
+    }, {
+      "name": "fmt"
+    }, {
+      "name": "fastgltf"
     } ]
 }
