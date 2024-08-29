@@ -21,5 +21,7 @@
       "name": "fmt"
     }, {
       "name": "fastgltf"
+    }, {
+      "name": "vulkan-utility-libraries"
     } ]
 }
