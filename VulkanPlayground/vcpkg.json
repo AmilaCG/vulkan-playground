@@ -1,7 +1,7 @@
 {
   "name" : "vulkan-playground",
   "version-string" : "1.0.0",
-  "builtin-baseline" : "e590c2b30c08caf1dd8d612ec602a003f9784b7d",
+  "builtin-baseline" : "f5ec6f30ff70f04f841436a0f36600bdbabfcfbf",
   "dependencies": [ {
       "name": "sdl2"
     }, {

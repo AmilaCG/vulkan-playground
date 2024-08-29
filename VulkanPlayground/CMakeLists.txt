@@ -19,21 +19,20 @@ find_package(glm CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 find_package(tinyobjloader CONFIG REQUIRED)
 find_package(fastgltf CONFIG REQUIRED)
-#find_package(fmt CONFIG REQUIRED)
+find_package(fmt CONFIG REQUIRED)
 find_package(vk-bootstrap CONFIG REQUIRED)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
         Vulkan::Vulkan
-        $<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
-        $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
+        SDL2::SDL2
+        SDL2::SDL2main
         glm::glm-header-only
         tinyobjloader::tinyobjloader
         fastgltf::fastgltf
-#        fmt::fmt-header-only
+        fmt::fmt-header-only
         vk-bootstrap::vk-bootstrap
-#        vk-bootstrap::vk-bootstrap-compiler-warnings
         GPUOpen::VulkanMemoryAllocator
         imgui::imgui)
 
