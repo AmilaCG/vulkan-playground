@@ -32,6 +32,8 @@ void VulkanEngine::init()
         _windowExtent.height,
         window_flags);
 
+    fmt::print("{}\n", SDL_GetError());
+
     // everything went fine
     _isInitialized = true;
 }
