@@ -1,5 +1,4 @@
-﻿//> includes
-#include "vk_engine.h"
+﻿#include "vk_engine.h"
 
 #include <SDL.h>
 #include <SDL_vulkan.h>
@@ -23,7 +22,7 @@ void VulkanEngine::init()
     // We initialize SDL and create a window with it.
     SDL_Init(SDL_INIT_VIDEO);
 
-    SDL_WindowFlags window_flags = (SDL_WindowFlags) (SDL_WINDOW_VULKAN);
+    constexpr SDL_WindowFlags window_flags = SDL_WINDOW_VULKAN;
 
     _window = SDL_CreateWindow(
         "Vulkan Engine",
@@ -72,17 +71,17 @@ void VulkanEngine::run()
             {
                 if (e.window.event == SDL_WINDOWEVENT_MINIMIZED)
                 {
-                    stop_rendering = true;
+                    _stopRendering = true;
                 }
                 if (e.window.event == SDL_WINDOWEVENT_RESTORED)
                 {
-                    stop_rendering = false;
+                    _stopRendering = false;
                 }
             }
         }
 
         // do not draw if we are minimized
-        if (stop_rendering)
+        if (_stopRendering)
         {
             // throttle the speed to avoid the endless spinning
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
