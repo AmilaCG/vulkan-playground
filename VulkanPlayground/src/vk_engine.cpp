@@ -1,15 +1,17 @@
 ﻿#include "vk_engine.h"
 
+#include <chrono>
+#include <thread>
+
 #include <SDL.h>
 #include <SDL_vulkan.h>
+#include <VkBootstrap.h>
 
 #include "vk_initializers.h"
 #include "vk_types.h"
 
-#include <chrono>
-#include <thread>
-
 VulkanEngine* loadedEngine = nullptr;
+constexpr bool bUseValidationLayers = true;
 
 VulkanEngine& VulkanEngine::Get() { return *loadedEngine; }
 
@@ -31,8 +33,12 @@ void VulkanEngine::init()
         _windowExtent.width,
         _windowExtent.height,
         window_flags);
-
     fmt::print("{}\n", SDL_GetError());
+
+    init_vulkan();
+    init_swapchain();
+    init_commands();
+    init_sync_structures();
 
     // everything went fine
     _isInitialized = true;
@@ -92,4 +98,63 @@ void VulkanEngine::run()
 
         draw();
     }
+}
+
+void VulkanEngine::init_vulkan()
+{
+    vkb::InstanceBuilder builder;
+    // Make the vulkan instance with basic debug features
+    vkb::Instance vkb_inst = builder.set_app_name("VK Guide")
+        .request_validation_layers(bUseValidationLayers)
+        .use_default_debug_messenger()
+        .require_api_version(1, 3, 0)
+        .build()
+        .value();
+
+    _instance = vkb_inst.instance;
+    _debug_messenger = vkb_inst.debug_messenger;
+
+    SDL_Vulkan_CreateSurface(_window, _instance, &_surface);
+
+    // Vulkan 1.3 features
+    VkPhysicalDeviceVulkan13Features features13{};
+    features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    features13.synchronization2 = true;
+    features13.dynamicRendering = true;
+
+    // Vulkan 1.2 features
+    VkPhysicalDeviceVulkan12Features features12{};
+    features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    features12.descriptorIndexing = true;
+    features12.bufferDeviceAddress = true;
+
+    // Selecting a GPU that can write to the SDL surface and supports Vulkan 1.3
+    // with correct features
+    vkb::PhysicalDeviceSelector selector{vkb_inst};
+    vkb::PhysicalDevice physicalDevice = selector
+        .set_minimum_version(1, 3)
+        .set_required_features_13(features13)
+        .set_required_features_12(features12)
+        .set_surface(_surface)
+        .select()
+        .value();
+
+    // Create the final vulkan device
+    vkb::DeviceBuilder deviceBuilder{physicalDevice};
+    vkb::Device vkbDevice = deviceBuilder.build().value();
+
+    _device = vkbDevice.device;
+    _chosenGPU = physicalDevice.physical_device;
+}
+
+void VulkanEngine::init_swapchain()
+{
+}
+
+void VulkanEngine::init_commands()
+{
+}
+
+void VulkanEngine::init_sync_structures()
+{
 }
