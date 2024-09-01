@@ -7,13 +7,9 @@ class VulkanEngine
 public:
     static VulkanEngine& Get();
 
-    //initializes everything in the engine
     void init();
-    //shuts down the engine
     void cleanup();
-    //draw loop
     void draw();
-    //run main loop
     void run();
 
 private:
@@ -21,6 +17,8 @@ private:
     void init_swapchain();
     void init_commands();
     void init_sync_structures();
+    void create_swapchain(uint32_t width, uint32_t height);
+    void destroy_swapchain();
 
     bool _isInitialized{false};
     int _frameNumber{0};
@@ -33,4 +31,11 @@ private:
     VkPhysicalDevice _chosenGPU{};
     VkDevice _device{};
     VkSurfaceKHR _surface{};
+
+    VkSwapchainKHR _swapchain{};
+    VkFormat _swapchainImageFormat{};
+
+    std::vector<VkImage> _swapchainImages;
+    std::vector<VkImageView> _swapchainImageViews;
+    VkExtent2D _swapchainExtent{};
 };
