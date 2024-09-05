@@ -9,6 +9,7 @@
 
 #include "vk_initializers.h"
 #include "vk_types.h"
+#include "vk_images.h"
 
 VulkanEngine* loadedEngine = nullptr;
 constexpr bool bUseValidationLayers = true;
@@ -53,6 +54,10 @@ void VulkanEngine::cleanup()
         for (FrameData& frame : _frames)
         {
             vkDestroyCommandPool(_device, frame._commandPool, nullptr);
+
+            vkDestroyFence(_device, frame._renderFence, nullptr);
+            vkDestroySemaphore(_device, frame._renderSemaphore, nullptr);
+            vkDestroySemaphore(_device, frame._swapchainSemaphore, nullptr);
         }
 
         destroy_swapchain();
@@ -97,6 +102,67 @@ void VulkanEngine::draw()
         vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT /* Optional flag */);
 
     VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+
+    // Make the swapchain image into writable mode before rendering
+    vkutil::transition_image(cmd,
+                             _swapchainImages[swapchainImageIndex],
+                             VK_IMAGE_LAYOUT_UNDEFINED,
+                             VK_IMAGE_LAYOUT_GENERAL);
+
+    // Make a clear color from frame number. This will flash with a 120 feame period.
+    VkClearColorValue clearValue;
+    float flash = std::abs(std::sin(_frameNumber / 120.0f));
+    clearValue = {{0.0f, 0.0f, flash, 1.0f}}; // {{R, G, B, A}}
+
+    VkImageSubresourceRange clearRange = vkinit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
+
+    // Clear image
+    vkCmdClearColorImage(cmd,
+                         _swapchainImages[swapchainImageIndex],
+                         VK_IMAGE_LAYOUT_GENERAL,
+                         &clearValue,
+                         1,
+                         &clearRange);
+
+    // Make the swapchain image into presentable mode
+    vkutil::transition_image(cmd,
+                             _swapchainImages[swapchainImageIndex],
+                             VK_IMAGE_LAYOUT_GENERAL,
+                             VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+    // Finalize the command buffer
+    VK_CHECK(vkEndCommandBuffer(cmd));
+
+    VkCommandBufferSubmitInfo cmdInfo = vkinit::command_buffer_submit_info(cmd);
+
+    // Wait on the swapchain (present) semaphore, as that is signaled when the swapchain is ready
+    VkSemaphoreSubmitInfo waitInfo = vkinit::semaphore_submit_info(
+        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, currentFrame._swapchainSemaphore);
+
+    // Signal the render semaphore when rendering is finished
+    VkSemaphoreSubmitInfo signalInfo = vkinit::semaphore_submit_info(
+        VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, currentFrame._renderSemaphore);
+
+    VkSubmitInfo2 submit = vkinit::submit_info(&cmdInfo, &signalInfo, &waitInfo);
+
+    // Submit command buffer to the queue to execute it
+    VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, currentFrame._renderFence));
+
+    // Prepare to present (show rendered image in the window)
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.pSwapchains = &_swapchain;
+    presentInfo.swapchainCount = 1;
+
+    // We want to wait on the render semaphore for presenting
+    presentInfo.pWaitSemaphores = &currentFrame._renderSemaphore;
+    presentInfo.waitSemaphoreCount = 1;
+
+    presentInfo.pImageIndices = &swapchainImageIndex;
+
+    VK_CHECK(vkQueuePresentKHR(_graphicsQueue, &presentInfo));
+
+    _frameNumber++;
 }
 
 void VulkanEngine::run()
