@@ -6,8 +6,12 @@ struct FrameData
 {
     VkCommandPool _commandPool;
     VkCommandBuffer _mainCommandBuffer;
+    VkSemaphore _swapchainSemaphore;
+    VkSemaphore _renderSemaphore;
+    VkFence _renderFence;
 };
 
+constexpr unsigned int ONE_SEC_NS = 1000000000; // 1 second in nanoseconds
 constexpr unsigned int FRAME_OVERLAP = 2;
 
 class VulkanEngine

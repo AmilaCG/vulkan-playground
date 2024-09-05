@@ -71,7 +71,32 @@ void VulkanEngine::cleanup()
 
 void VulkanEngine::draw()
 {
-    // nothing yet
+    FrameData currentFrame = get_current_frame();
+
+    // Wait until the GPU has finished rendering the last frame
+    VK_CHECK(vkWaitForFences(_device, 1, &currentFrame._renderFence, true, ONE_SEC_NS));
+    VK_CHECK(vkResetFences(_device, 1, &currentFrame._renderFence));
+
+    uint32_t swapchainImageIndex;
+    // Request image from the swapchain
+    VK_CHECK(vkAcquireNextImageKHR(_device,
+                           _swapchain,
+                           ONE_SEC_NS,
+                           currentFrame._swapchainSemaphore,
+                           nullptr,
+                           &swapchainImageIndex));
+
+    VkCommandBuffer cmd = currentFrame._mainCommandBuffer;
+
+    // Now that we are sure that the commands finished executing, we can safely reset
+    // the command buffer to begin recording again
+    VK_CHECK(vkResetCommandBuffer(cmd, 0));
+
+    // Begin the command buffer recording. We will be using this command buffer exactly once.
+    VkCommandBufferBeginInfo cmdBeginInfo =
+        vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT /* Optional flag */);
+
+    VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 }
 
 void VulkanEngine::run()
@@ -189,6 +214,16 @@ void VulkanEngine::init_commands()
 
 void VulkanEngine::init_sync_structures()
 {
+    VkFenceCreateInfo fenceCreateInfo = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
+    VkSemaphoreCreateInfo semaphoreCreateInfo = vkinit::semaphore_create_info();
+
+    for (FrameData& frame : _frames)
+    {
+        VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &frame._renderFence));
+
+        VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._swapchainSemaphore));
+        VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._renderSemaphore));
+    }
 }
 
 void VulkanEngine::create_swapchain(uint32_t width, uint32_t height)
