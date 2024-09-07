@@ -2,6 +2,26 @@
 
 #include "vk_types.h"
 
+struct DeletionQueue
+{
+    std::stack<std::function<void()>> deletors;
+
+    void push_function(std::function<void()>&& function)
+    {
+        deletors.push(function);
+    }
+
+    void flush()
+    {
+        while (!deletors.empty())
+        {
+            auto deletor = deletors.top();
+            deletor();
+            deletors.pop();
+        }
+    }
+};
+
 struct FrameData
 {
     VkCommandPool _commandPool;
@@ -9,6 +29,8 @@ struct FrameData
     VkSemaphore _swapchainSemaphore;
     VkSemaphore _renderSemaphore;
     VkFence _renderFence;
+
+    DeletionQueue _deletionQueue;
 };
 
 constexpr unsigned int ONE_SEC_NS = 1000000000; // 1 second in nanoseconds
@@ -56,4 +78,6 @@ private:
 
     VkQueue _graphicsQueue{};
     uint32_t _graphicsQueueFamily{};
+
+    DeletionQueue _mainDeletionQueue;
 };
