@@ -80,4 +80,10 @@ private:
     uint32_t _graphicsQueueFamily{};
 
     DeletionQueue _mainDeletionQueue;
+
+    VmaAllocator _allocator{};
+
+    // Draw resources
+    AllocatedImage _drawImage{};
+    VkExtent2D _drawExtent{};
 };
