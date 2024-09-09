@@ -54,6 +54,7 @@ private:
     void create_swapchain(uint32_t width, uint32_t height);
     void destroy_swapchain();
     FrameData& get_current_frame();
+    void draw_background(VkCommandBuffer cmd);
 
     bool _isInitialized{false};
     int _frameNumber{0};
