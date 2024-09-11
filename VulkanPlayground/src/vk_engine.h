@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "vk_descriptors.h"
 #include "vk_types.h"
 
 struct DeletionQueue
@@ -55,6 +56,7 @@ private:
     void destroy_swapchain();
     FrameData& get_current_frame();
     void draw_background(VkCommandBuffer cmd);
+    void init_descriptors();
 
     bool _isInitialized{false};
     int _frameNumber{0};
@@ -87,4 +89,8 @@ private:
     // Draw resources
     AllocatedImage _drawImage{};
     VkExtent2D _drawExtent{};
+
+    DescriptorAllocator _globalDescriptorAllocator{};
+    VkDescriptorSet _drawImageDescriptors{};
+    VkDescriptorSetLayout _drawImageDescriptorLayout{};
 };
