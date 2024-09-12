@@ -407,20 +407,20 @@ FrameData& VulkanEngine::get_current_frame()
 
 void VulkanEngine::draw_background(VkCommandBuffer cmd)
 {
-    // Make a clear color from frame number. This will flash with a 120 feame period.
-    VkClearColorValue clearValue;
-    float flash = std::abs(std::sin(_frameNumber / 120.0f));
-    clearValue = {{0.0f, 0.0f, flash, 1.0f}}; // {{R, G, B, A}}
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _gradientPipeline);
 
-    VkImageSubresourceRange clearRange = vkinit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
+    vkCmdBindDescriptorSets(cmd,
+                            VK_PIPELINE_BIND_POINT_COMPUTE,
+                            _gradientPipelineLayout,
+                            0,
+                            1,
+                            &_drawImageDescriptors,
+                            0,
+                            nullptr);
 
-    // Clear image
-    vkCmdClearColorImage(cmd,
-                         _drawImage.image,
-                         VK_IMAGE_LAYOUT_GENERAL,
-                         &clearValue,
-                         1,
-                         &clearRange);
+    // Execute the compute pipeline dispatch. We are using 16x16 workgroup size so we
+    // need to divide by it
+    vkCmdDispatch(cmd, std::ceil(_drawExtent.width / 16.0), std::ceil(_drawExtent.height / 16.0), 1);
 }
 
 void VulkanEngine::init_descriptors()
