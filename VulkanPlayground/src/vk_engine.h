@@ -57,6 +57,8 @@ private:
     FrameData& get_current_frame();
     void draw_background(VkCommandBuffer cmd);
     void init_descriptors();
+    void init_pipelines();
+    void init_background_pipelines();
 
     bool _isInitialized{false};
     int _frameNumber{0};
@@ -93,4 +95,7 @@ private:
     DescriptorAllocator _globalDescriptorAllocator{};
     VkDescriptorSet _drawImageDescriptors{};
     VkDescriptorSetLayout _drawImageDescriptorLayout{};
+
+    VkPipeline _gradientPipeline{};
+    VkPipelineLayout _gradientPipelineLayout{};
 };

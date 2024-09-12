@@ -12,6 +12,9 @@
 #include "vk_initializers.h"
 #include "vk_types.h"
 #include "vk_images.h"
+#include "vk_pipelines.h"
+
+auto COMP_SHADER_PATH_GRADIENT = "gradient.comp.spv";
 
 VulkanEngine* loadedEngine = nullptr;
 constexpr bool bUseValidationLayers = true;
@@ -43,6 +46,7 @@ void VulkanEngine::init()
     init_commands();
     init_sync_structures();
     init_descriptors();
+    init_pipelines();
 
     // everything went fine
     _isInitialized = true;
@@ -454,5 +458,51 @@ void VulkanEngine::init_descriptors()
     {
         _globalDescriptorAllocator.destroy_pool(_device);
         vkDestroyDescriptorSetLayout(_device, _drawImageDescriptorLayout, nullptr);
+    });
+}
+
+void VulkanEngine::init_pipelines()
+{
+    init_background_pipelines();
+}
+
+void VulkanEngine::init_background_pipelines()
+{
+    VkPipelineLayoutCreateInfo computeLayout{};
+    computeLayout.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    computeLayout.pSetLayouts = &_drawImageDescriptorLayout;
+    computeLayout.setLayoutCount = 1;
+
+    VK_CHECK(vkCreatePipelineLayout(_device, &computeLayout, nullptr, &_gradientPipelineLayout));
+
+    VkShaderModule computeDrawShader;
+    if (!vkutil::load_shader_module(COMP_SHADER_PATH_GRADIENT, _device, computeDrawShader))
+    {
+        fmt::print("Compute shader creation failed!\n");
+    }
+
+    VkPipelineShaderStageCreateInfo stageInfo{};
+    stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    stageInfo.module = computeDrawShader;
+    stageInfo.pName = "main";
+
+    VkComputePipelineCreateInfo computePipelineCreateInfo{};
+    computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    computePipelineCreateInfo.layout = _gradientPipelineLayout;
+    computePipelineCreateInfo.stage = stageInfo;
+
+    VK_CHECK(vkCreateComputePipelines(_device,
+                              VK_NULL_HANDLE,
+                              1,
+                              &computePipelineCreateInfo,
+                              nullptr,
+                              &_gradientPipeline));
+
+    vkDestroyShaderModule(_device, computeDrawShader, nullptr);
+    _mainDeletionQueue.push_function([&]()
+    {
+        vkDestroyPipelineLayout(_device, _gradientPipelineLayout, nullptr);
+        vkDestroyPipeline(_device, _gradientPipeline, nullptr);
     });
 }
