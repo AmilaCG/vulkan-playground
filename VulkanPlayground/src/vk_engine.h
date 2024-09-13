@@ -59,6 +59,8 @@ private:
     void init_descriptors();
     void init_pipelines();
     void init_background_pipelines();
+    void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
+    void init_imgui();
 
     bool _isInitialized{false};
     int _frameNumber{0};
@@ -98,4 +100,9 @@ private:
 
     VkPipeline _gradientPipeline{};
     VkPipelineLayout _gradientPipelineLayout{};
+
+    // Immediate submit structures
+    VkFence _immFence{};
+    VkCommandBuffer _immCommandBuffer{};
+    VkCommandPool _immCommandPool{};
 };
