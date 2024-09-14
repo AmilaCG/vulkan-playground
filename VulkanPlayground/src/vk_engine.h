@@ -42,6 +42,16 @@ struct ComputePushConstants
     glm::vec4 data4;
 };
 
+struct ComputeEffect
+{
+    const char* name;
+
+    VkPipeline pipeline;
+    VkPipelineLayout layout;
+
+    ComputePushConstants data;
+};
+
 constexpr unsigned int ONE_SEC_NS = 1000000000; // 1 second in nanoseconds
 constexpr unsigned int FRAME_OVERLAP = 2;
 
@@ -107,11 +117,12 @@ private:
     VkDescriptorSet _drawImageDescriptors{};
     VkDescriptorSetLayout _drawImageDescriptorLayout{};
 
-    VkPipeline _gradientPipeline{};
-    VkPipelineLayout _gradientPipelineLayout{};
-
     // Immediate submit structures
     VkFence _immFence{};
     VkCommandBuffer _immCommandBuffer{};
     VkCommandPool _immCommandPool{};
+
+    VkPipelineLayout _gradientPipelineLayout{};
+    std::vector<ComputeEffect> backgroundEffects;
+    int currentBackgroundEffect{0};
 };
