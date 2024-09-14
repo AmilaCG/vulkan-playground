@@ -17,7 +17,7 @@
 #include "vk_images.h"
 #include "vk_pipelines.h"
 
-auto COMP_SHADER_PATH_GRADIENT = "gradient.comp.spv";
+auto COMP_SHADER_PATH_GRADIENT = "gradient_color.comp.spv";
 
 VulkanEngine* loadedEngine = nullptr;
 constexpr bool bUseValidationLayers = true;
@@ -458,6 +458,17 @@ void VulkanEngine::draw_background(VkCommandBuffer cmd)
                             0,
                             nullptr);
 
+    ComputePushConstants pushConstants{};
+    pushConstants.data1 = glm::vec4(1, 0, 0, 1);
+    pushConstants.data2 = glm::vec4(0, 0, 1, 1);
+
+    vkCmdPushConstants(cmd,
+                       _gradientPipelineLayout,
+                       VK_SHADER_STAGE_COMPUTE_BIT,
+                       0,
+                       sizeof(ComputePushConstants),
+                       &pushConstants);
+
     // Execute the compute pipeline dispatch. We are using 16x16 workgroup size so we
     // need to divide by it
     vkCmdDispatch(cmd, std::ceil(_drawExtent.width / 16.0), std::ceil(_drawExtent.height / 16.0), 1);
@@ -512,6 +523,14 @@ void VulkanEngine::init_background_pipelines()
     computeLayout.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     computeLayout.pSetLayouts = &_drawImageDescriptorLayout;
     computeLayout.setLayoutCount = 1;
+
+    VkPushConstantRange pushConstantRange{};
+    pushConstantRange.offset = 0;
+    pushConstantRange.size = sizeof(ComputePushConstants);
+    pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+    computeLayout.pPushConstantRanges = &pushConstantRange;
+    computeLayout.pushConstantRangeCount = 1;
 
     VK_CHECK(vkCreatePipelineLayout(_device, &computeLayout, nullptr, &_gradientPipelineLayout));
 

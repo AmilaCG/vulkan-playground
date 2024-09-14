@@ -34,6 +34,14 @@ struct FrameData
     DeletionQueue _deletionQueue;
 };
 
+struct ComputePushConstants
+{
+    glm::vec4 data1;
+    glm::vec4 data2;
+    glm::vec4 data3;
+    glm::vec4 data4;
+};
+
 constexpr unsigned int ONE_SEC_NS = 1000000000; // 1 second in nanoseconds
 constexpr unsigned int FRAME_OVERLAP = 2;
 
