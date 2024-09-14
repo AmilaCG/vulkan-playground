@@ -152,6 +152,9 @@ void VulkanEngine::draw()
                                 _drawExtent,
                                 _swapchainExtent);
 
+    // Draw imgui UI on the swapchain image
+    draw_imgui(cmd, _swapchainImageViews[swapchainImageIndex]);
+
     // Set swapchain image layout to present so we can show it on the screen
     vkutil::transition_image(cmd,
                              _swapchainImages[swapchainImageIndex],
@@ -219,6 +222,9 @@ void VulkanEngine::run()
                     _stopRendering = false;
                 }
             }
+
+            // Send SDL event to imgui for handling
+            ImGui_ImplSDL2_ProcessEvent(&e);
         }
 
         // do not draw if we are minimized
@@ -228,6 +234,16 @@ void VulkanEngine::run()
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
+
+        // Imgui new frame
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplSDL2_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::ShowDemoWindow();
+
+        // Make imgui calculate it's internal draw structures. It will not draw anything yet.
+        ImGui::Render();
 
         draw();
     }
@@ -411,6 +427,7 @@ void VulkanEngine::create_swapchain(uint32_t width, uint32_t height)
     _swapchainExtent = vkbSwapchain.extent;
     _swapchain = vkbSwapchain.swapchain;
     _swapchainImages = vkbSwapchain.get_images().value();
+    _swapchainImageViews = vkbSwapchain.get_image_views().value();
 }
 
 void VulkanEngine::destroy_swapchain()
@@ -611,4 +628,18 @@ void VulkanEngine::init_imgui()
         ImGui_ImplVulkan_Shutdown();
         vkDestroyDescriptorPool(_device, imguiPool, nullptr);
     });
+}
+
+void VulkanEngine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
+{
+    VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(targetImageView,
+                                                                        nullptr,
+                                                                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    VkRenderingInfo renderingInfo = vkinit::rendering_info(_swapchainExtent, &colorAttachment, nullptr);
+
+    vkCmdBeginRendering(cmd, &renderingInfo);
+
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+
+    vkCmdEndRendering(cmd);
 }

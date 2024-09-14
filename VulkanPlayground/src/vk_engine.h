@@ -61,6 +61,7 @@ private:
     void init_background_pipelines();
     void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
     void init_imgui();
+    void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
 
     bool _isInitialized{false};
     int _frameNumber{0};
