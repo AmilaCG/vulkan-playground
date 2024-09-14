@@ -6,6 +6,9 @@
 #include <SDL.h>
 #include <SDL_vulkan.h>
 #include <VkBootstrap.h>
+#include <imgui.h>
+#include <imgui_impl_sdl2.h>
+#include <imgui_impl_vulkan.h>
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
 
@@ -554,4 +557,58 @@ void VulkanEngine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& f
 
 void VulkanEngine::init_imgui()
 {
+    VkDescriptorPoolSize poolSizes[] = {
+        { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+    };
+
+    VkDescriptorPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    poolInfo.maxSets = 1000;
+    poolInfo.poolSizeCount = std::size(poolSizes);
+    poolInfo.pPoolSizes = poolSizes;
+
+    VkDescriptorPool imguiPool;
+    VK_CHECK(vkCreateDescriptorPool(_device, &poolInfo, nullptr, &imguiPool));
+
+    ImGui::CreateContext();
+    ImGui_ImplSDL2_InitForVulkan(_window);
+
+    ImGui_ImplVulkan_InitInfo initInfo{};
+    initInfo.Instance = _instance;
+    initInfo.PhysicalDevice = _chosenGPU;
+    initInfo.Device = _device;
+    initInfo.Queue = _graphicsQueue;
+    initInfo.DescriptorPool = imguiPool;
+    initInfo.MinImageCount = 3;
+    initInfo.ImageCount = 3;
+    initInfo.UseDynamicRendering = true;
+
+    // Dynamic rendering parameters for imgui
+    VkPipelineRenderingCreateInfoKHR pipelineRenderingCreateInfo{};
+    pipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    pipelineRenderingCreateInfo.colorAttachmentCount = 1;
+    pipelineRenderingCreateInfo.pColorAttachmentFormats = &_swapchainImageFormat;
+
+    initInfo.PipelineRenderingCreateInfo = pipelineRenderingCreateInfo;
+    initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+
+    ImGui_ImplVulkan_Init(&initInfo);
+    ImGui_ImplVulkan_CreateFontsTexture();
+
+    _mainDeletionQueue.push_function([=]()
+    {
+        ImGui_ImplVulkan_Shutdown();
+        vkDestroyDescriptorPool(_device, imguiPool, nullptr);
+    });
 }
