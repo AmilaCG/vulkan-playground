@@ -19,7 +19,7 @@
 
 auto COMP_SHADER_PATH_GRADIENT = "gradient_color.comp.spv";
 auto COMP_SHADER_PATH_SKY = "sky.comp.spv";
-auto FRAG_SHADER_TRIANGLE = "colored_tiangle.frag.spv";
+auto FRAG_SHADER_TRIANGLE = "colored_triangle.frag.spv";
 auto VERT_SHADER_TRIANGLE = "colored_triangle.vert.spv";
 
 VulkanEngine* loadedEngine = nullptr;
@@ -136,10 +136,18 @@ void VulkanEngine::draw()
 
     draw_background(cmd);
 
-    // Transition draw image into transfer source layout since we are going to copy it to the swapchain
+    // Transition draw image into color attachment optimal to draw geometry
     vkutil::transition_image(cmd,
                              _drawImage.image,
                              VK_IMAGE_LAYOUT_GENERAL,
+                             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+    draw_geometry(cmd);
+
+    // Transition draw image into transfer source layout since we are going to copy it to the swapchain
+    vkutil::transition_image(cmd,
+                             _drawImage.image,
+                             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                              VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
     // Transfer swapchaing image into transfer dst layout to copy incoming draw image into this
@@ -488,6 +496,41 @@ void VulkanEngine::draw_background(VkCommandBuffer cmd)
     vkCmdDispatch(cmd, std::ceil(_drawExtent.width / 16.0), std::ceil(_drawExtent.height / 16.0), 1);
 }
 
+void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
+{
+    // Begin a render pass connected to the draw image
+    VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView,
+                                                                        nullptr,
+                                                                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+    VkRenderingInfo renderInfo = vkinit::rendering_info(_drawExtent, &colorAttachment, nullptr);
+    vkCmdBeginRendering(cmd, &renderInfo);
+
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
+
+    // Set dynamic viewport and scissor
+    VkViewport viewport{};
+    viewport.x = 0;
+    viewport.y = 0;
+    viewport.width = _drawExtent.width;
+    viewport.height = _drawExtent.height;
+    viewport.minDepth = 0.f;
+    viewport.maxDepth = 1.f;
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.offset.x = 0;
+    scissor.offset.y = 0;
+    scissor.extent.width = _drawExtent.width;
+    scissor.extent.height = _drawExtent.height;
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+    // Launch a draw command to draw 3 vertices
+    vkCmdDraw(cmd, 3, 1, 0, 0);
+
+    vkCmdEndRendering(cmd);
+}
+
 void VulkanEngine::init_descriptors()
 {
     std::vector<DescriptorAllocator::PoolSizeRatio> sizes = {
@@ -725,7 +768,7 @@ void VulkanEngine::init_triangle_pipeline()
     VkShaderModule triangleVertShader{};
     if (!vkutil::load_shader_module(VERT_SHADER_TRIANGLE, _device, triangleVertShader))
     {
-        fmt::print("Triangle fragment shader loading failed!");
+        fmt::print("Triangle vertex shader loading failed!");
     }
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = vkinit::pipeline_layout_create_info();

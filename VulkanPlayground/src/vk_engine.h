@@ -74,6 +74,7 @@ private:
     void destroy_swapchain();
     FrameData& get_current_frame();
     void draw_background(VkCommandBuffer cmd);
+    void draw_geometry(VkCommandBuffer cmd);
     void init_descriptors();
     void init_pipelines();
     void init_background_pipelines();
