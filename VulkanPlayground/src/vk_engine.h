@@ -80,6 +80,7 @@ private:
     void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
     void init_imgui();
     void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
+    void init_triangle_pipeline();
 
     bool _isInitialized{false};
     int _frameNumber{0};
@@ -125,4 +126,7 @@ private:
     VkPipelineLayout _gradientPipelineLayout{};
     std::vector<ComputeEffect> backgroundEffects;
     int currentBackgroundEffect{0};
+
+    VkPipelineLayout _trianglePipelineLayout{};
+    VkPipeline _trianglePipeline{};
 };

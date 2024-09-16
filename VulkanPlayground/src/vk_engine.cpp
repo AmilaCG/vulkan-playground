@@ -19,6 +19,8 @@
 
 auto COMP_SHADER_PATH_GRADIENT = "gradient_color.comp.spv";
 auto COMP_SHADER_PATH_SKY = "sky.comp.spv";
+auto FRAG_SHADER_TRIANGLE = "colored_tiangle.frag.spv";
+auto VERT_SHADER_TRIANGLE = "colored_triangle.vert.spv";
 
 VulkanEngine* loadedEngine = nullptr;
 constexpr bool bUseValidationLayers = true;
@@ -527,6 +529,7 @@ void VulkanEngine::init_descriptors()
 void VulkanEngine::init_pipelines()
 {
     init_background_pipelines();
+    init_triangle_pipeline();
 }
 
 void VulkanEngine::init_background_pipelines()
@@ -709,4 +712,56 @@ void VulkanEngine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 
     vkCmdEndRendering(cmd);
+}
+
+void VulkanEngine::init_triangle_pipeline()
+{
+    VkShaderModule triangleFragShader{};
+    if (!vkutil::load_shader_module(FRAG_SHADER_TRIANGLE, _device, triangleFragShader))
+    {
+        fmt::print("Triangle fragment shader loading failed!");
+    }
+
+    VkShaderModule triangleVertShader{};
+    if (!vkutil::load_shader_module(VERT_SHADER_TRIANGLE, _device, triangleVertShader))
+    {
+        fmt::print("Triangle fragment shader loading failed!");
+    }
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo = vkinit::pipeline_layout_create_info();
+    VK_CHECK(vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &_trianglePipelineLayout));
+
+    PipelineBuilder pipelineBuilder;
+    // Use the triangle layout we created
+    pipelineBuilder._pipelineLayout = _trianglePipelineLayout;
+
+    pipelineBuilder.set_shaders(triangleVertShader, triangleFragShader);
+
+    // Set to draw triangles
+    pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    // Set to fill triangles
+    pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+    // No backface culling
+    pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+    // No multisampling
+    pipelineBuilder.set_multisampling_none();
+    // No blending
+    pipelineBuilder.disable_blending();
+    // No depth testing
+    pipelineBuilder.disable_depthtest();
+
+    // Set the image format we will draw into, from draw image
+    pipelineBuilder.set_color_attachment_format(_drawImage.imageFormat);
+    pipelineBuilder.set_depth_format(VK_FORMAT_UNDEFINED);
+
+    _trianglePipeline = pipelineBuilder.build_pipeline(_device);
+
+    vkDestroyShaderModule(_device, triangleFragShader, nullptr);
+    vkDestroyShaderModule(_device, triangleVertShader, nullptr);
+
+    _mainDeletionQueue.push_function([&]()
+    {
+        vkDestroyPipelineLayout(_device, _trianglePipelineLayout, nullptr);
+        vkDestroyPipeline(_device, _trianglePipeline, nullptr);
+    });
 }

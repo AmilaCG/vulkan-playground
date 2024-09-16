@@ -22,7 +22,6 @@ public:
     void set_depth_format(VkFormat format);
     void disable_depthtest();
 
-private:
     std::vector<VkPipelineShaderStageCreateInfo> _shaderStages;
 
     VkPipelineInputAssemblyStateCreateInfo _inputAssembly{};
