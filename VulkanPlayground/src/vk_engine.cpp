@@ -808,3 +808,31 @@ void VulkanEngine::init_triangle_pipeline()
         vkDestroyPipeline(_device, _trianglePipeline, nullptr);
     });
 }
+
+AllocatedBuffer VulkanEngine::create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
+{
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = allocSize;
+
+    bufferInfo.usage = usage;
+
+    VmaAllocationCreateInfo vmaAllocInfo{};
+    vmaAllocInfo.usage = memoryUsage;
+    vmaAllocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    AllocatedBuffer newBuffer{};
+
+    VK_CHECK(vmaCreateBuffer(_allocator,
+                             &bufferInfo,
+                             &vmaAllocInfo,
+                             &newBuffer.buffer,
+                             &newBuffer.allocation,
+                             &newBuffer.info));
+
+    return newBuffer;
+}
+
+void VulkanEngine::destroy_buffer(const AllocatedBuffer& buffer)
+{
+    vmaDestroyBuffer(_allocator, buffer.buffer, buffer.allocation);
+}

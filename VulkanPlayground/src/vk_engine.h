@@ -82,6 +82,8 @@ private:
     void init_imgui();
     void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
     void init_triangle_pipeline();
+    AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+    void destroy_buffer(const AllocatedBuffer& buffer);
 
     bool _isInitialized{false};
     int _frameNumber{0};
