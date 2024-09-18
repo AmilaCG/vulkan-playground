@@ -84,6 +84,7 @@ private:
     void init_triangle_pipeline();
     AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
     void destroy_buffer(const AllocatedBuffer& buffer);
+    GPUMeshBuffers upload_mesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
 
     bool _isInitialized{false};
     int _frameNumber{0};

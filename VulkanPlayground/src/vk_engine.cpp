@@ -836,3 +836,64 @@ void VulkanEngine::destroy_buffer(const AllocatedBuffer& buffer)
 {
     vmaDestroyBuffer(_allocator, buffer.buffer, buffer.allocation);
 }
+
+GPUMeshBuffers VulkanEngine::upload_mesh(std::span<uint32_t> indices, std::span<Vertex> vertices)
+{
+    const size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
+    const size_t indexBufferSize = indices.size() * sizeof(uint32_t);
+
+    GPUMeshBuffers newSurface{};
+
+    // Allocate vertex buffer in the GPU as a SSBO
+    newSurface.vertexBuffer = create_buffer(vertexBufferSize,
+                                            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                            VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                                            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                                            VMA_MEMORY_USAGE_GPU_ONLY);
+
+    // Find the adress of the vertex buffer
+    VkBufferDeviceAddressInfo deviceAdressInfo{};
+    deviceAdressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+    deviceAdressInfo.buffer = newSurface.vertexBuffer.buffer;
+
+    newSurface.vertexBufferAddress = vkGetBufferDeviceAddress(_device, &deviceAdressInfo);
+
+    // Allocate index buffer in the GPU
+    newSurface.indexBuffer = create_buffer(indexBufferSize,
+                                           VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                           VMA_MEMORY_USAGE_GPU_ONLY);
+
+    // As allocated buffers are GPU_ONLY, we will be using a staging buffer to write date into them.
+    // This is a very common pattern with Vulkan. GPU_ONLY memory can't be written on CPU, we first write
+    // the memory on a temporal staging buffer that is CPU writable, and then execute a copy command to
+    // copy this buffer into the GPU buffers.
+    AllocatedBuffer stagingBuffer = create_buffer(vertexBufferSize + indexBufferSize,
+                                                  VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                  VMA_MEMORY_USAGE_CPU_ONLY);
+
+    void* data = stagingBuffer.allocation->GetMappedData();
+
+    // Copy vertex buffer
+    memcpy(data, vertices.data(), vertexBufferSize);
+    // Copy index buffer
+    // TODO: Do we really need the char* cast?
+    memcpy(static_cast<char*>(data) + vertexBufferSize, indices.data(), indexBufferSize);
+
+    immediate_submit([&](VkCommandBuffer cmd)
+    {
+        VkBufferCopy vertexCopy{};
+        vertexCopy.size = vertexBufferSize;
+
+        vkCmdCopyBuffer(cmd, stagingBuffer.buffer, newSurface.vertexBuffer.buffer, 1, &vertexCopy);
+
+        VkBufferCopy indexCopy{};
+        indexCopy.srcOffset = vertexBufferSize;
+        indexCopy.size = indexBufferSize;
+
+        vkCmdCopyBuffer(cmd, stagingBuffer.buffer, newSurface.indexBuffer.buffer, 1, &indexCopy);
+    });
+
+    destroy_buffer(stagingBuffer);
+
+    return newSurface;
+}

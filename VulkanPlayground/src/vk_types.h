@@ -44,3 +44,27 @@ struct AllocatedBuffer
     VmaAllocation allocation;
     VmaAllocationInfo info;
 };
+
+// UV parameters are interleaved due to alignment limitations on GPUs. We want this
+// structure to match the shader version so interleaving like this improves it.
+struct Vertex
+{
+    glm::vec3 position;
+    float uv_x;
+    glm::vec3 normal;
+    float uv_y;
+    glm::vec4 color;
+};
+
+struct GPUMeshBuffers
+{
+    AllocatedBuffer indexBuffer;
+    AllocatedBuffer vertexBuffer;
+    VkDeviceAddress vertexBufferAddress;
+};
+
+struct GPUDrawPushConstants
+{
+    glm::mat4 worldMatrix;
+    VkDeviceAddress vertexBuffer;
+};
