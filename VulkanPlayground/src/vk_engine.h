@@ -86,6 +86,7 @@ private:
     void destroy_buffer(const AllocatedBuffer& buffer);
     GPUMeshBuffers upload_mesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
     void init_mesh_pipeline();
+    void init_default_data();
 
     bool _isInitialized{false};
     int _frameNumber{0};

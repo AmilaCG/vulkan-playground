@@ -55,6 +55,7 @@ void VulkanEngine::init()
     init_descriptors();
     init_pipelines();
     init_imgui();
+    init_default_data();
 
     // everything went fine
     _isInitialized = true;
@@ -529,6 +530,23 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
     // Launch a draw command to draw 3 vertices
     vkCmdDraw(cmd, 3, 1, 0, 0);
 
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipeline);
+
+    GPUDrawPushConstants pushConstants;
+    pushConstants.worldMatrix = glm::mat4{1.0f};
+    pushConstants.vertexBuffer = _rectangle.vertexBufferAddress;
+
+    vkCmdPushConstants(cmd,
+                       _meshPipelineLayout,
+                       VK_SHADER_STAGE_VERTEX_BIT,
+                       0,
+                       sizeof(GPUDrawPushConstants),
+                       &pushConstants);
+
+    vkCmdBindIndexBuffer(cmd, _rectangle.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+    vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
+
     vkCmdEndRendering(cmd);
 }
 
@@ -572,7 +590,10 @@ void VulkanEngine::init_descriptors()
 
 void VulkanEngine::init_pipelines()
 {
+    // Compute pipelines
     init_background_pipelines();
+
+    // Graphics pipelines
     init_triangle_pipeline();
     init_mesh_pipeline();
 }
@@ -946,5 +967,38 @@ void VulkanEngine::init_mesh_pipeline()
     {
         vkDestroyPipelineLayout(_device, _meshPipelineLayout, nullptr);
         vkDestroyPipeline(_device, _meshPipeline, nullptr);
+    });
+}
+
+void VulkanEngine::init_default_data()
+{
+    std::array<Vertex, 4> rectVertices{};
+
+    rectVertices[0].position = {0.5, -0.5, 0};
+    rectVertices[1].position = {0.5, 0.5, 0};
+    rectVertices[2].position = {-0.5, -0.5, 0};
+    rectVertices[3].position = {-0.5, 0.5, 0};
+
+    rectVertices[0].color = {0, 0, 0, 1};
+    rectVertices[1].color = {0.5, 0.5, 0.5, 1};
+    rectVertices[2].color = {1, 0, 0, 1};
+    rectVertices[3].color = {0, 1, 0, 1};
+
+    std::array<uint32_t, 6> rectIndices{};
+
+    rectIndices[0] = 0;
+    rectIndices[1] = 1;
+    rectIndices[2] = 2;
+
+    rectIndices[3] = 2;
+    rectIndices[4] = 1;
+    rectIndices[5] = 3;
+
+    _rectangle = upload_mesh(rectIndices, rectVertices);
+
+    _mainDeletionQueue.push_function([&]()
+    {
+        destroy_buffer(_rectangle.indexBuffer);
+        destroy_buffer(_rectangle.vertexBuffer);
     });
 }
