@@ -21,6 +21,7 @@ auto COMP_SHADER_PATH_GRADIENT = "gradient_color.comp.spv";
 auto COMP_SHADER_PATH_SKY = "sky.comp.spv";
 auto FRAG_SHADER_TRIANGLE = "colored_triangle.frag.spv";
 auto VERT_SHADER_TRIANGLE = "colored_triangle.vert.spv";
+auto VERT_SHADER_TRIANGLE_MESH = "colored_triangle_mesh.vert.spv";
 
 VulkanEngine* loadedEngine = nullptr;
 constexpr bool bUseValidationLayers = true;
@@ -573,6 +574,7 @@ void VulkanEngine::init_pipelines()
 {
     init_background_pipelines();
     init_triangle_pipeline();
+    init_mesh_pipeline();
 }
 
 void VulkanEngine::init_background_pipelines()
@@ -896,4 +898,53 @@ GPUMeshBuffers VulkanEngine::upload_mesh(std::span<uint32_t> indices, std::span<
     destroy_buffer(stagingBuffer);
 
     return newSurface;
+}
+
+void VulkanEngine::init_mesh_pipeline()
+{
+    VkShaderModule triangleFragShader{};
+    if (!vkutil::load_shader_module(FRAG_SHADER_TRIANGLE, _device, triangleFragShader))
+    {
+        fmt::print("Triangle fragment shader loading failed!");
+    }
+
+    VkShaderModule triangleVertShader{};
+    if (!vkutil::load_shader_module(VERT_SHADER_TRIANGLE_MESH, _device, triangleVertShader))
+    {
+        fmt::print("Triangle vertex shader loading failed!");
+    }
+
+    VkPushConstantRange bufferRange{};
+    bufferRange.size = sizeof(GPUDrawPushConstants);
+    bufferRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo = vkinit::pipeline_layout_create_info();
+    pipelineLayoutInfo.pPushConstantRanges = &bufferRange;
+    pipelineLayoutInfo.pushConstantRangeCount = 1;
+
+    VK_CHECK(vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &_meshPipelineLayout));
+
+    PipelineBuilder pipelineBuilder;
+
+    pipelineBuilder._pipelineLayout = _meshPipelineLayout;
+    pipelineBuilder.set_shaders(triangleVertShader, triangleFragShader);
+    pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+    pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+    pipelineBuilder.set_multisampling_none();
+    pipelineBuilder.disable_blending();
+    pipelineBuilder.disable_depthtest();
+    pipelineBuilder.set_color_attachment_format(_drawImage.imageFormat);
+    pipelineBuilder.set_depth_format(VK_FORMAT_UNDEFINED);
+
+    _meshPipeline = pipelineBuilder.build_pipeline(_device);
+
+    vkDestroyShaderModule(_device, triangleFragShader, nullptr);
+    vkDestroyShaderModule(_device, triangleVertShader, nullptr);
+
+    _mainDeletionQueue.push_function([&]()
+    {
+        vkDestroyPipelineLayout(_device, _meshPipelineLayout, nullptr);
+        vkDestroyPipeline(_device, _meshPipeline, nullptr);
+    });
 }

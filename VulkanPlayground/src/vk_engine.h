@@ -85,6 +85,7 @@ private:
     AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
     void destroy_buffer(const AllocatedBuffer& buffer);
     GPUMeshBuffers upload_mesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
+    void init_mesh_pipeline();
 
     bool _isInitialized{false};
     int _frameNumber{0};
@@ -133,4 +134,8 @@ private:
 
     VkPipelineLayout _trianglePipelineLayout{};
     VkPipeline _trianglePipeline{};
+    VkPipelineLayout _meshPipelineLayout;
+    VkPipeline _meshPipeline;
+
+    GPUMeshBuffers _rectangle;
 };
