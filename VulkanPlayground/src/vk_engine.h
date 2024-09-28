@@ -65,6 +65,8 @@ public:
     void draw();
     void run();
 
+    GPUMeshBuffers upload_mesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
+
 private:
     void init_vulkan();
     void init_swapchain();
@@ -84,7 +86,6 @@ private:
     void init_triangle_pipeline();
     AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
     void destroy_buffer(const AllocatedBuffer& buffer);
-    GPUMeshBuffers upload_mesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
     void init_mesh_pipeline();
     void init_default_data();
 
