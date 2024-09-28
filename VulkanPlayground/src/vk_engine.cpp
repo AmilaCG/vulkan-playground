@@ -23,6 +23,8 @@ auto FRAG_SHADER_TRIANGLE = "colored_triangle.frag.spv";
 auto VERT_SHADER_TRIANGLE = "colored_triangle.vert.spv";
 auto VERT_SHADER_TRIANGLE_MESH = "colored_triangle_mesh.vert.spv";
 
+auto MESH_BASIC = "Assets/basicmesh.glb";
+
 VulkanEngine* loadedEngine = nullptr;
 constexpr bool bUseValidationLayers = true;
 
@@ -547,6 +549,24 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
     vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
 
+    pushConstants.vertexBuffer = _testMeshes[2]->meshBuffers.vertexBufferAddress;
+
+    vkCmdPushConstants(cmd,
+                       _meshPipelineLayout,
+                       VK_SHADER_STAGE_VERTEX_BIT,
+                       0,
+                       sizeof(GPUDrawPushConstants),
+                       &pushConstants);
+
+    vkCmdBindIndexBuffer(cmd, _testMeshes[2]->meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+    vkCmdDrawIndexed(cmd,
+                     _testMeshes[2]->surfaces[0].count,
+                     1,
+                     _testMeshes[2]->surfaces[0].startIndex,
+                     0,
+                     0);
+
     vkCmdEndRendering(cmd);
 }
 
@@ -996,9 +1016,17 @@ void VulkanEngine::init_default_data()
 
     _rectangle = upload_mesh(rectIndices, rectVertices);
 
+    _testMeshes = load_gltf_meshes(this, MESH_BASIC).value();
+
     _mainDeletionQueue.push_function([&]()
     {
         destroy_buffer(_rectangle.indexBuffer);
         destroy_buffer(_rectangle.vertexBuffer);
+
+        for (const std::shared_ptr<MeshAsset>& mesh : _testMeshes)
+        {
+            destroy_buffer(mesh->meshBuffers.indexBuffer);
+            destroy_buffer(mesh->meshBuffers.vertexBuffer);
+        }
     });
 }

@@ -2,6 +2,7 @@
 
 #include "vk_descriptors.h"
 #include "vk_types.h"
+#include "vk_loader.h"
 
 struct DeletionQueue
 {
@@ -140,4 +141,5 @@ private:
     VkPipeline _meshPipeline;
 
     GPUMeshBuffers _rectangle;
+    std::vector<std::shared_ptr<MeshAsset>> _testMeshes;
 };
