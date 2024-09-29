@@ -11,6 +11,8 @@
 #include <imgui_impl_vulkan.h>
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
+#include <glm/ext/matrix_clip_space.hpp>
+#include <glm/ext/matrix_transform.hpp>
 
 #include "vk_initializers.h"
 #include "vk_types.h"
@@ -390,10 +392,28 @@ void VulkanEngine::init_swapchain()
 
     VK_CHECK(vkCreateImageView(_device, &rViewInfo, nullptr, &_drawImage.imageView));
 
+    _depthImage.imageFormat = VK_FORMAT_D32_SFLOAT;
+    _depthImage.imageExtent = drawImageExtent;
+
+    VkImageUsageFlags depthImageUsages{};
+    depthImageUsages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+    VkImageCreateInfo dImgInfo = vkinit::image_create_info(_depthImage.imageFormat, depthImageUsages, drawImageExtent);
+    vmaCreateImage(_allocator, &dImgInfo, &rImgAllocInfo, &_depthImage.image, &_depthImage.allocation, nullptr);
+
+    VkImageViewCreateInfo dViewInfo = vkinit::imageview_create_info(_depthImage.imageFormat,
+                                                                    _depthImage.image,
+                                                                    VK_IMAGE_ASPECT_DEPTH_BIT);
+
+    VK_CHECK(vkCreateImageView(_device, &dViewInfo, nullptr, &_depthImage.imageView));
+
     _mainDeletionQueue.push_function([=]()
     {
         vkDestroyImageView(_device, _drawImage.imageView, nullptr);
         vmaDestroyImage(_allocator, _drawImage.image, _drawImage.allocation);
+
+        vkDestroyImageView(_device, _depthImage.imageView, nullptr);
+        vmaDestroyImage(_allocator, _depthImage.image, _depthImage.allocation);
     });
 }
 
@@ -507,11 +527,6 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
                                                                         nullptr,
                                                                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-    VkRenderingInfo renderInfo = vkinit::rendering_info(_drawExtent, &colorAttachment, nullptr);
-    vkCmdBeginRendering(cmd, &renderInfo);
-
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
-
     // Set dynamic viewport and scissor
     VkViewport viewport{};
     viewport.x = 0;
@@ -528,6 +543,11 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
     scissor.extent.width = _drawExtent.width;
     scissor.extent.height = _drawExtent.height;
     vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+    VkRenderingInfo renderInfo = vkinit::rendering_info(_drawExtent, &colorAttachment, nullptr);
+    vkCmdBeginRendering(cmd, &renderInfo);
+
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
 
     // Launch a draw command to draw 3 vertices
     vkCmdDraw(cmd, 3, 1, 0, 0);
@@ -546,10 +566,19 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
                        &pushConstants);
 
     vkCmdBindIndexBuffer(cmd, _rectangle.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
     vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
 
     pushConstants.vertexBuffer = _testMeshes[2]->meshBuffers.vertexBufferAddress;
+
+    glm::mat4 view{1.0f};
+    view = glm::translate(view, glm::vec3{0, 0, -5});
+    glm::mat4 projection = glm::perspective(glm::radians(70.0f),
+                                            (float)_drawExtent.width / (float)_drawExtent.height,
+                                            0.1f,
+                                            10000.0f); // TODO: Reverse depth values
+    // Invert Y axis on projection matrix so that to align with OpenGL coordinates as gltf uses OpenGL coordinates
+    projection[1][1] *= -1;
+    pushConstants.worldMatrix = projection * view;
 
     vkCmdPushConstants(cmd,
                        _meshPipelineLayout,
