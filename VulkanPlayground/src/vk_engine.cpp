@@ -527,6 +527,9 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
                                                                         nullptr,
                                                                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
+    VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView,
+                                                                        VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+
     // Set dynamic viewport and scissor
     VkViewport viewport{};
     viewport.x = 0;
@@ -544,7 +547,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
     scissor.extent.height = _drawExtent.height;
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-    VkRenderingInfo renderInfo = vkinit::rendering_info(_drawExtent, &colorAttachment, nullptr);
+    VkRenderingInfo renderInfo = vkinit::rendering_info(_drawExtent, &colorAttachment, &depthAttachment);
     vkCmdBeginRendering(cmd, &renderInfo);
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
@@ -572,6 +575,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
     glm::mat4 view{1.0f};
     view = glm::translate(view, glm::vec3{0, 0, -5});
+    view = glm::rotate(view, glm::radians(180.0f), glm::vec3{0, 1, 0});
     glm::mat4 projection = glm::perspective(glm::radians(70.0f),
                                             (float)_drawExtent.width / (float)_drawExtent.height,
                                             0.1f,
@@ -867,7 +871,7 @@ void VulkanEngine::init_triangle_pipeline()
 
     // Set the image format we will draw into, from draw image
     pipelineBuilder.set_color_attachment_format(_drawImage.imageFormat);
-    pipelineBuilder.set_depth_format(VK_FORMAT_UNDEFINED);
+    pipelineBuilder.set_depth_format(_depthImage.imageFormat);
 
     _trianglePipeline = pipelineBuilder.build_pipeline(_device);
 
@@ -1003,9 +1007,9 @@ void VulkanEngine::init_mesh_pipeline()
     pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
     pipelineBuilder.set_multisampling_none();
     pipelineBuilder.disable_blending();
-    pipelineBuilder.disable_depthtest();
+    pipelineBuilder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
     pipelineBuilder.set_color_attachment_format(_drawImage.imageFormat);
-    pipelineBuilder.set_depth_format(VK_FORMAT_UNDEFINED);
+    pipelineBuilder.set_depth_format(_depthImage.imageFormat);
 
     _meshPipeline = pipelineBuilder.build_pipeline(_device);
 
