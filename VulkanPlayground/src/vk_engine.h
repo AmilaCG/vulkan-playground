@@ -88,6 +88,7 @@ private:
     void destroy_buffer(const AllocatedBuffer& buffer);
     void init_mesh_pipeline();
     void init_default_data();
+    void resize_swapchain();
 
     bool _isInitialized{false};
     int _frameNumber{0};
@@ -121,6 +122,7 @@ private:
     AllocatedImage _drawImage{};
     AllocatedImage _depthImage{};
     VkExtent2D _drawExtent{};
+    float _renderScale = 1.0f;
 
     DescriptorAllocator _globalDescriptorAllocator{};
     VkDescriptorSet _drawImageDescriptors{};
