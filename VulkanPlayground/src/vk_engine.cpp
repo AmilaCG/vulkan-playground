@@ -672,7 +672,7 @@ void VulkanEngine::init_descriptors()
         vkDestroyDescriptorSetLayout(_device, _gpuSceneDataDescriptorLayout, nullptr);
     });
 
-    for (int i = 0; i < FRAME_OVERLAP; i++)
+    for (FrameData& frame : _frames)
     {
         // Create a descriptor pool
         std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> frameSizes = {
@@ -682,12 +682,12 @@ void VulkanEngine::init_descriptors()
             {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4},
         };
 
-        _frames[i]._frameDescriptors = DescriptorAllocatorGrowable{};
-        _frames[i]._frameDescriptors.init(_device, 1000, frameSizes);
+        frame._frameDescriptors = DescriptorAllocatorGrowable{};
+        frame._frameDescriptors.init(_device, 1000, frameSizes);
 
-        _mainDeletionQueue.push_function([&, i]()
+        _mainDeletionQueue.push_function([&]()
         {
-            _frames[i]._frameDescriptors.destroy_pools(_device);
+            frame._frameDescriptors.destroy_pools(_device);
         });
     }
 }
