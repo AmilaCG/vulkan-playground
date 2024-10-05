@@ -28,11 +28,13 @@ struct FrameData
 {
     VkCommandPool _commandPool;
     VkCommandBuffer _mainCommandBuffer;
+
     VkSemaphore _swapchainSemaphore;
     VkSemaphore _renderSemaphore;
     VkFence _renderFence;
 
     DeletionQueue _deletionQueue;
+    DescriptorAllocatorGrowable _frameDescriptors;
 };
 
 struct ComputePushConstants
@@ -51,6 +53,16 @@ struct ComputeEffect
     VkPipelineLayout layout;
 
     ComputePushConstants data;
+};
+
+struct GPUSceneData
+{
+    glm::mat4 view;
+    glm::mat4 proj;
+    glm::mat4 viewProj;
+    glm::vec4 ambientColor;
+    glm::vec4 sunlightDirection;
+    glm::vec4 sunlightColor;
 };
 
 constexpr unsigned int ONE_SEC_NS = 1000000000; // 1 second in nanoseconds
@@ -141,4 +153,7 @@ private:
     VkPipeline _meshPipeline;
 
     std::vector<std::shared_ptr<MeshAsset>> _testMeshes;
+
+    GPUSceneData _sceneData{};
+    VkDescriptorSetLayout _gpuSceneDataDescriptorLayout{};
 };
