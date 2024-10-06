@@ -12,6 +12,7 @@
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/packing.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
 
@@ -1027,8 +1028,59 @@ void VulkanEngine::init_default_data()
 {
     _testMeshes = load_gltf_meshes(this, MESH_BASIC).value();
 
+    uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
+    _whiteImage = create_image(&white,
+                               VkExtent3D{1, 1, 1},
+                               VK_FORMAT_R8G8B8A8_UNORM,
+                               VK_IMAGE_USAGE_SAMPLED_BIT);
+
+    uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1.0f));
+    _greyImage = create_image(&white,
+                               VkExtent3D{1, 1, 1},
+                               VK_FORMAT_R8G8B8A8_UNORM,
+                               VK_IMAGE_USAGE_SAMPLED_BIT);
+
+    uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
+    _blackImage = create_image(&white,
+                               VkExtent3D{1, 1, 1},
+                               VK_FORMAT_R8G8B8A8_UNORM,
+                               VK_IMAGE_USAGE_SAMPLED_BIT);
+
+    uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
+    std::array<uint32_t, 16 * 16> pixels{};
+    for (int x = 0; x < 16; x++)
+    {
+        for (int y = 0; y < 16; y++)
+        {
+            pixels[y * 16 + x] = ((x % 2) ^ (y % 2)) ? magenta : black;
+        }
+    }
+    _errorCheckboardImage = create_image(pixels.data(),
+                                         VkExtent3D{16, 16, 1},
+                                         VK_FORMAT_R8G8B8A8_UNORM,
+                                         VK_IMAGE_USAGE_SAMPLED_BIT);
+
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+
+    samplerInfo.magFilter = VK_FILTER_NEAREST;
+    samplerInfo.minFilter = VK_FILTER_NEAREST;
+    vkCreateSampler(_device, &samplerInfo, nullptr, &_defaultSamplerNearest); // Pixelated look
+
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+    vkCreateSampler(_device, &samplerInfo, nullptr, &_defaultSamplerLinear); // Blur pixels
+
     _mainDeletionQueue.push_function([&]()
     {
+        destroy_image(_whiteImage);
+        destroy_image(_greyImage);
+        destroy_image(_blackImage);
+        destroy_image(_errorCheckboardImage);
+
+        vkDestroySampler(_device, _defaultSamplerNearest, nullptr);
+        vkDestroySampler(_device, _defaultSamplerLinear, nullptr);
+
         for (const std::shared_ptr<MeshAsset>& mesh : _testMeshes)
         {
             destroy_buffer(mesh->meshBuffers.indexBuffer);

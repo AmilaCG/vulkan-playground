@@ -139,6 +139,14 @@ private:
     VkExtent2D _drawExtent{};
     float _renderScale = 1.0f;
 
+    AllocatedImage _whiteImage;
+    AllocatedImage _blackImage;
+    AllocatedImage _greyImage;
+    AllocatedImage _errorCheckboardImage;
+
+    VkSampler _defaultSamplerLinear{};
+    VkSampler _defaultSamplerNearest{};
+
     DescriptorAllocator _globalDescriptorAllocator{};
     VkDescriptorSet _drawImageDescriptors{};
     VkDescriptorSetLayout _drawImageDescriptorLayout{};
