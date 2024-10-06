@@ -48,28 +48,28 @@ file(GLOB_RECURSE GLSL_SOURCE_FILES
 )
 if(WIN32)
     set(shader_compiler_exe "$ENV{VULKAN_SDK}/Bin/glslc.exe")
-
-    ## iterate each shader
-    foreach(GLSL ${GLSL_SOURCE_FILES})
-        message(STATUS "BUILDING SHADER")
-        get_filename_component(FILE_NAME ${GLSL} NAME)
-        set(SPIRV "${PROJECT_SOURCE_DIR}/shaders/${FILE_NAME}.spv")
-        message(STATUS ${GLSL})
-        ##execute glslang command to compile that specific shader
-        add_custom_command(
-                OUTPUT ${SPIRV}
-                COMMAND ${shader_compiler_exe} ${GLSL} -o "${build_out_dir}/${FILE_NAME}.spv"
-                DEPENDS ${GLSL})
-        list(APPEND SPIRV_BINARY_FILES ${SPIRV})
-    endforeach(GLSL)
-
-    add_custom_target(CompileShaders ALL
-            COMMAND ${CMAKE_COMMAND} -E make_directory ${build_out_dir}
-            DEPENDS ${SPIRV_BINARY_FILES}
-    )
-
-    add_dependencies(${PROJECT_NAME} CompileShaders)
+else()
+    set(shader_compiler_exe "$ENV{VULKAN_SDK}/Bin/glslc")
 endif()
+
+## iterate each shader
+foreach(GLSL ${GLSL_SOURCE_FILES})
+    message(STATUS "BUILDING SHADER")
+    get_filename_component(FILE_NAME ${GLSL} NAME)
+    set(SPIRV "${PROJECT_SOURCE_DIR}/shaders/${FILE_NAME}.spv")
+    message(STATUS ${GLSL})
+    ##execute glslang command to compile that specific shader
+    add_custom_command(
+            OUTPUT ${SPIRV}
+            COMMAND ${shader_compiler_exe} ${GLSL} -o "${build_out_dir}/${FILE_NAME}.spv"
+            DEPENDS ${GLSL})
+    list(APPEND SPIRV_BINARY_FILES ${SPIRV})
+endforeach(GLSL)
+
+add_custom_target(CompileShaders ALL
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${build_out_dir}
+        DEPENDS ${SPIRV_BINARY_FILES}
+)
 
 add_custom_target(ClearAssets ALL
         COMMAND ${CMAKE_COMMAND} -E rm -rf
@@ -81,3 +81,4 @@ add_custom_target(CopyAssets ALL
 
 add_dependencies(${PROJECT_NAME} CopyAssets)
 add_dependencies(CopyAssets ClearAssets)
+add_dependencies(ClearAssets CompileShaders)
