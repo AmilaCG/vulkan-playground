@@ -150,6 +150,7 @@ private:
     DescriptorAllocator _globalDescriptorAllocator{};
     VkDescriptorSet _drawImageDescriptors{};
     VkDescriptorSetLayout _drawImageDescriptorLayout{};
+    VkDescriptorSetLayout _singleImageDescriptorLayout{};
 
     // Immediate submit structures
     VkFence _immFence{};

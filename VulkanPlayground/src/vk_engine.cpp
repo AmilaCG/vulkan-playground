@@ -24,6 +24,7 @@
 auto COMP_SHADER_PATH_GRADIENT = "gradient_color.comp.spv";
 auto COMP_SHADER_PATH_SKY = "sky.comp.spv";
 auto FRAG_SHADER_TRIANGLE = "colored_triangle.frag.spv";
+auto FRAG_SHADER_TEXTURE = "tex_image.frag.spv";
 auto VERT_SHADER_TRIANGLE = "colored_triangle.vert.spv";
 auto VERT_SHADER_TRIANGLE_MESH = "colored_triangle_mesh.vert.spv";
 
@@ -574,6 +575,27 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
     scissor.extent.height = _drawExtent.height;
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
+    // Bind a texture
+    VkDescriptorSet imageSet = get_current_frame()._frameDescriptors.allocate(_device,
+                                                                              _singleImageDescriptorLayout);
+    DescriptorWriter writerTexture{};
+    writerTexture.write_image(0,
+                              _errorCheckboardImage.imageView,
+                              _defaultSamplerNearest,
+                              VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                              VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+    writerTexture.update_set(_device, imageSet);
+
+    vkCmdBindDescriptorSets(cmd,
+                            VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            _meshPipelineLayout,
+                            0,
+                            1,
+                            &imageSet,
+                            0,
+                            nullptr);
+
     const std::shared_ptr<MeshAsset> selectedMesh = _testMeshes[2];
 
     GPUDrawPushConstants pushConstants{};
@@ -626,14 +648,14 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
     VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(_device,
         _gpuSceneDataDescriptorLayout);
 
-    DescriptorWriter writer{};
-    writer.write_buffer(0,
+    DescriptorWriter writerUniform{};
+    writerUniform.write_buffer(0,
                         gpuSceneDataBuffer.buffer,
                         sizeof(GPUSceneData),
                         0,
                         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 
-    writer.update_set(_device, globalDescriptor);
+    writerUniform.update_set(_device, globalDescriptor);
 
     vkCmdEndRendering(cmd);
 }
@@ -641,16 +663,16 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 void VulkanEngine::init_descriptors()
 {
     std::vector<DescriptorAllocator::PoolSizeRatio> sizes = {
-        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1}
+        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1},
     };
 
     // Create a descriptor pool that will hold 10 sets with 1 image each
     _globalDescriptorAllocator.init_pool(_device, 10, sizes);
 
-    DescriptorLayoutBuilder builder;
-    builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+    DescriptorLayoutBuilder builderStorageImg{};
     // Create a layout with a single VK_DESCRIPTOR_TYPE_STORAGE_IMAGE binding at binding 0
-    _drawImageDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
+    builderStorageImg.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+    _drawImageDescriptorLayout = builderStorageImg.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
 
     // Allocate a descriptor set for the draw image
     _drawImageDescriptors = _globalDescriptorAllocator.allocate(_device, _drawImageDescriptorLayout);
@@ -664,15 +686,21 @@ void VulkanEngine::init_descriptors()
 
     writer.update_set(_device, _drawImageDescriptors);
 
-    builder.clear();
-    builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-    _gpuSceneDataDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+    DescriptorLayoutBuilder builderUniform{};
+    builderUniform.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    _gpuSceneDataDescriptorLayout = builderUniform.build(_device,
+                                                         VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+
+    DescriptorLayoutBuilder builderImgSampler{};
+    builderImgSampler.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    _singleImageDescriptorLayout = builderImgSampler.build(_device, VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _mainDeletionQueue.push_function([&]()
     {
         _globalDescriptorAllocator.destroy_pool(_device);
         vkDestroyDescriptorSetLayout(_device, _drawImageDescriptorLayout, nullptr);
         vkDestroyDescriptorSetLayout(_device, _gpuSceneDataDescriptorLayout, nullptr);
+        vkDestroyDescriptorSetLayout(_device, _singleImageDescriptorLayout, nullptr);
     });
 
     for (FrameData& frame : _frames)
@@ -978,7 +1006,7 @@ GPUMeshBuffers VulkanEngine::upload_mesh(std::span<uint32_t> indices, std::span<
 void VulkanEngine::init_mesh_pipeline()
 {
     VkShaderModule triangleFragShader{};
-    if (!vkutil::load_shader_module(FRAG_SHADER_TRIANGLE, _device, triangleFragShader))
+    if (!vkutil::load_shader_module(FRAG_SHADER_TEXTURE, _device, triangleFragShader))
     {
         fmt::print("Triangle fragment shader loading failed!");
     }
@@ -996,6 +1024,8 @@ void VulkanEngine::init_mesh_pipeline()
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = vkinit::pipeline_layout_create_info();
     pipelineLayoutInfo.pPushConstantRanges = &bufferRange;
     pipelineLayoutInfo.pushConstantRangeCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &_singleImageDescriptorLayout;
+    pipelineLayoutInfo.setLayoutCount = 1;
 
     VK_CHECK(vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &_meshPipelineLayout));
 
