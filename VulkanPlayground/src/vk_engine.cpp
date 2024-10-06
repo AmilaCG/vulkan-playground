@@ -380,6 +380,8 @@ void VulkanEngine::init_swapchain()
     create_swapchain(_windowExtent.width, _windowExtent.height);
 
     const VkExtent3D drawImageExtent = {
+        // NOTE: We can increase width and height here to accommodate high-res screens.
+        // If the window is smaller than the given resolution, we can scale down the frame.
         _windowExtent.width,
         _windowExtent.height,
         1
@@ -1049,4 +1051,98 @@ void VulkanEngine::resize_swapchain()
     create_swapchain(_windowExtent.width, _windowExtent.height);
 
     resizeRequested = false;
+}
+
+AllocatedImage VulkanEngine::create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
+{
+    AllocatedImage newImage;
+    newImage.imageFormat = format;
+    newImage.imageExtent = size;
+
+    VkImageCreateInfo imgInfo = vkinit::image_create_info(format, usage, size);
+    if (mipmapped)
+    {
+        imgInfo.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(size.width, size.height)))) + 1;
+    }
+
+    VmaAllocationCreateInfo allocInfo{};
+    allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+    VK_CHECK(vmaCreateImage(_allocator,
+                            &imgInfo,
+                            &allocInfo,
+                            &newImage.image,
+                            &newImage.allocation,
+                            nullptr));
+
+    VkImageAspectFlags aspectFlag = VK_IMAGE_ASPECT_COLOR_BIT;
+    if (format == VK_FORMAT_D32_SFLOAT)
+    {
+        aspectFlag = VK_IMAGE_ASPECT_DEPTH_BIT;
+    }
+
+    VkImageViewCreateInfo viewInfo = vkinit::imageview_create_info(format, newImage.image, aspectFlag);
+    viewInfo.subresourceRange.levelCount = imgInfo.mipLevels;
+
+    VK_CHECK(vkCreateImageView(_device, &viewInfo, nullptr, &newImage.imageView));
+
+    return newImage;
+}
+
+AllocatedImage VulkanEngine::create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage,
+    bool mipmapped)
+{
+    size_t dataSize = size.width * size.height * size.depth * 4;
+    AllocatedBuffer uploadBuffer = create_buffer(dataSize,
+                                                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                 VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+    memcpy(uploadBuffer.info.pMappedData, data, dataSize);
+
+    AllocatedImage newImage = create_image(size,
+                                           format,
+                                           usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                                           mipmapped);
+
+    immediate_submit([&](VkCommandBuffer cmd)
+    {
+        vkutil::transition_image(cmd,
+                                 newImage.image,
+                                 VK_IMAGE_LAYOUT_UNDEFINED,
+                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+        VkBufferImageCopy copyRegion{};
+        copyRegion.bufferOffset = 0;
+        copyRegion.bufferRowLength = 0;
+        copyRegion.bufferImageHeight = 0;
+
+        copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copyRegion.imageSubresource.mipLevel = 0;
+        copyRegion.imageSubresource.baseArrayLayer = 0;
+        copyRegion.imageSubresource.layerCount = 1;
+        copyRegion.imageExtent = size;
+
+        vkCmdCopyBufferToImage(cmd,
+                               uploadBuffer.buffer,
+                               newImage.image,
+                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                               1,
+                               &copyRegion);
+
+        vkutil::transition_image(cmd,
+                                 newImage.image,
+                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    });
+
+    destroy_buffer(uploadBuffer);
+
+    return newImage;
+}
+
+void VulkanEngine::destroy_image(const AllocatedImage& image)
+{
+    vkDestroyImageView(_device, image.imageView, nullptr);
+    vmaDestroyImage(_allocator, image.image, image.allocation);
 }

@@ -101,6 +101,9 @@ private:
     void init_mesh_pipeline();
     void init_default_data();
     void resize_swapchain();
+    AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+    AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+    void destroy_image(const AllocatedImage& image);
 
     bool _isInitialized{false};
     int _frameNumber{0};
