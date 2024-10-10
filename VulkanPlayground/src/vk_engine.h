@@ -65,6 +65,42 @@ struct GPUSceneData
     glm::vec4 sunlightColor;
 };
 
+struct GLTFMetallicRoughness
+{
+    MaterialPipeline opaquePipeline;
+    MaterialPipeline transparentPipeline;
+
+    VkDescriptorSetLayout materialLayout;
+
+    struct MaterialConstants
+    {
+        glm::vec4 colorFactors;
+        glm::vec4 metalRoughFactors;
+        // Padding, we need it for uniform buffers
+        glm::vec4 extra[14];
+    };
+
+    struct MaterialResources
+    {
+        AllocatedImage colorImage;
+        VkSampler colorSampler;
+        AllocatedImage metalRoughImage;
+        VkSampler metalRoughSampler;
+        VkBuffer dataBuffer;
+        uint32_t dataBufferOffset;
+    };
+
+    DescriptorWriter writer;
+
+    void build_pipelines(VulkanEngine* engine);
+    void clear_resources(VkDevice device);
+
+    MaterialInstance write_material(VkDevice device,
+                                    MaterialPass pass,
+                                    const MaterialResources& resources,
+                                    DescriptorAllocatorGrowable& descriptorAllocator);
+};
+
 constexpr unsigned int ONE_SEC_NS = 1000000000; // 1 second in nanoseconds
 constexpr unsigned int FRAME_OVERLAP = 2;
 
@@ -79,6 +115,11 @@ public:
     void run();
 
     GPUMeshBuffers upload_mesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
+
+    VkDevice _device{};
+    VkDescriptorSetLayout _gpuSceneDataDescriptorLayout{};
+    AllocatedImage _drawImage{};
+    AllocatedImage _depthImage{};
 
 private:
     void init_vulkan();
@@ -114,7 +155,6 @@ private:
     VkInstance _instance{};
     VkDebugUtilsMessengerEXT _debug_messenger{}; // Vulkan debug output handle
     VkPhysicalDevice _chosenGPU{};
-    VkDevice _device{};
     VkSurfaceKHR _surface{};
 
     VkSwapchainKHR _swapchain{};
@@ -134,8 +174,6 @@ private:
     VmaAllocator _allocator{};
 
     // Draw resources
-    AllocatedImage _drawImage{};
-    AllocatedImage _depthImage{};
     VkExtent2D _drawExtent{};
     float _renderScale = 1.0f;
 
@@ -167,5 +205,4 @@ private:
     std::vector<std::shared_ptr<MeshAsset>> _testMeshes;
 
     GPUSceneData _sceneData{};
-    VkDescriptorSetLayout _gpuSceneDataDescriptorLayout{};
 };
