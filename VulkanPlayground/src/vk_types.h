@@ -29,6 +29,41 @@
         }                                                               \
     } while (0)
 
+struct DrawContext;
+
+// Base class for a renderable dynamic object
+class IRenderable
+{
+    virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx) = 0;
+};
+
+struct Node : public IRenderable
+{
+    // Parent pointer must be a weak pointer to avoid circular dependencies
+    std::weak_ptr<Node> parent;
+    std::vector<std::shared_ptr<Node>> children;
+
+    glm::mat4 localTransform;
+    glm::mat4 worldTransform;
+
+    void refresh_transform(const glm::mat4& parentMatrix)
+    {
+        worldTransform = parentMatrix * localTransform;
+        for (auto child : children)
+        {
+            child->refresh_transform(worldTransform);
+        }
+    }
+
+    virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx)
+    {
+        for (auto& child : children)
+        {
+            child->draw(topMatrix, ctx);
+        }
+    }
+};
+
 enum class MaterialPass : uint8_t
 {
     MainColor,
