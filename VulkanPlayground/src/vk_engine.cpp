@@ -88,6 +88,8 @@ void VulkanEngine::cleanup()
             frame._deletionQueue.flush();
         }
 
+        _metalRoughMaterial.clear_resources(_device);
+
         _mainDeletionQueue.flush();
 
         destroy_swapchain();
@@ -664,12 +666,13 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
 void VulkanEngine::init_descriptors()
 {
-    std::vector<DescriptorAllocator::PoolSizeRatio> sizes = {
+    std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes = {
         {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}
     };
 
     // Create a descriptor pool that will hold 10 sets with 1 image each
-    _globalDescriptorAllocator.init_pool(_device, 10, sizes);
+    _globalDescriptorAllocator.init(_device, 10, sizes);
 
     DescriptorLayoutBuilder builderStorageImg{};
     // Create a layout with a single VK_DESCRIPTOR_TYPE_STORAGE_IMAGE binding at binding 0
@@ -699,7 +702,7 @@ void VulkanEngine::init_descriptors()
 
     _mainDeletionQueue.push_function([&]()
     {
-        _globalDescriptorAllocator.destroy_pool(_device);
+        _globalDescriptorAllocator.destroy_pools(_device);
         vkDestroyDescriptorSetLayout(_device, _drawImageDescriptorLayout, nullptr);
         vkDestroyDescriptorSetLayout(_device, _gpuSceneDataDescriptorLayout, nullptr);
         vkDestroyDescriptorSetLayout(_device, _singleImageDescriptorLayout, nullptr);
@@ -732,6 +735,8 @@ void VulkanEngine::init_pipelines()
 
     // Graphics pipelines
     init_mesh_pipeline();
+
+    _metalRoughMaterial.build_pipelines(this);
 }
 
 void VulkanEngine::init_background_pipelines()
@@ -1103,7 +1108,32 @@ void VulkanEngine::init_default_data()
     samplerInfo.minFilter = VK_FILTER_LINEAR;
     vkCreateSampler(_device, &samplerInfo, nullptr, &_defaultSamplerLinear); // Blur pixels
 
-    _mainDeletionQueue.push_function([&]()
+    GLTFMetallicRoughness::MaterialResources materialResources{};
+    // Default the material textures
+    materialResources.colorImage = _whiteImage;
+    materialResources.colorSampler = _defaultSamplerNearest;
+    materialResources.metalRoughImage = _whiteImage;
+    materialResources.metalRoughSampler = _defaultSamplerLinear;
+
+    AllocatedBuffer materialConstants = create_buffer(sizeof(GLTFMetallicRoughness::MaterialConstants),
+                                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                      VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+    // Write the buffer
+    auto sceneUniformData =
+        static_cast<GLTFMetallicRoughness::MaterialConstants*>(materialConstants.allocation->GetMappedData());
+    sceneUniformData->colorFactors = glm::vec4{1.0f, 1.0f, 1.0f, 1.0f};
+    sceneUniformData->metalRoughFactors = glm::vec4{1.0f, 0.5f, 0.0f, 0.0f};
+
+    materialResources.dataBuffer = materialConstants.buffer;
+    materialResources.dataBufferOffset = 0;
+
+    _defaultMaterialData = _metalRoughMaterial.write_material(_device,
+                                                              MaterialPass::MainColor,
+                                                              materialResources,
+                                                              _globalDescriptorAllocator);
+
+    _mainDeletionQueue.push_function([&, materialConstants]()
     {
         destroy_image(_whiteImage);
         destroy_image(_greyImage);
@@ -1118,6 +1148,8 @@ void VulkanEngine::init_default_data()
             destroy_buffer(mesh->meshBuffers.indexBuffer);
             destroy_buffer(mesh->meshBuffers.vertexBuffer);
         }
+
+        destroy_buffer(materialConstants);
     });
 }
 
@@ -1303,7 +1335,7 @@ void GLTFMetallicRoughness::clear_resources(VkDevice device)
 {
     vkDestroyDescriptorSetLayout(device, materialLayout, nullptr);
 
-    vkDestroyPipelineLayout(device, transparentPipeline.layout, nullptr);
+    // transparentPipeline.layout is also using the same layout, so not destroying it again
     vkDestroyPipelineLayout(device, opaquePipeline.layout, nullptr);
 
     vkDestroyPipeline(device, transparentPipeline.pipeline, nullptr);

@@ -185,7 +185,7 @@ private:
     VkSampler _defaultSamplerLinear{};
     VkSampler _defaultSamplerNearest{};
 
-    DescriptorAllocator _globalDescriptorAllocator{};
+    DescriptorAllocatorGrowable _globalDescriptorAllocator{};
     VkDescriptorSet _drawImageDescriptors{};
     VkDescriptorSetLayout _drawImageDescriptorLayout{};
     VkDescriptorSetLayout _singleImageDescriptorLayout{};
@@ -205,4 +205,7 @@ private:
     std::vector<std::shared_ptr<MeshAsset>> _testMeshes;
 
     GPUSceneData _sceneData{};
+
+    MaterialInstance _defaultMaterialData{};
+    GLTFMetallicRoughness _metalRoughMaterial{};
 };
