@@ -3,6 +3,7 @@
 #include "vk_descriptors.h"
 #include "vk_types.h"
 #include "vk_loader.h"
+#include "camera.h"
 
 struct DeletionQueue
 {
@@ -236,4 +237,6 @@ private:
 
     DrawContext _mainDrawContext{};
     std::unordered_map<std::string, std::shared_ptr<Node>> _loadedNodes;
+
+    Camera _mainCamera{};
 };

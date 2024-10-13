@@ -67,6 +67,11 @@ void VulkanEngine::init()
     init_imgui();
     init_default_data();
 
+    _mainCamera.velocity = glm::vec3(0);
+    _mainCamera.position = glm::vec3(0, 0, 5);
+    _mainCamera.pitch = 0;
+    _mainCamera.yaw = 0;
+
     // everything went fine
     _isInitialized = true;
 }
@@ -246,7 +251,9 @@ void VulkanEngine::run()
         {
             // close the window when user alt-f4s or clicks the X button
             if (e.type == SDL_QUIT)
+            {
                 bQuit = true;
+            }
 
             if (e.type == SDL_WINDOWEVENT)
             {
@@ -259,6 +266,8 @@ void VulkanEngine::run()
                     _stopRendering = false;
                 }
             }
+
+            _mainCamera.process_sdl_event(e);
 
             // Send SDL event to imgui for handling
             ImGui_ImplSDL2_ProcessEvent(&e);
@@ -1278,19 +1287,20 @@ void VulkanEngine::update_scene()
 {
     _mainDrawContext.opaqueSurfaces.clear();
 
-    // _loadedNodes["Suzanne"]->draw(glm::mat4{1.0f}, _mainDrawContext);
+    _loadedNodes["Suzanne"]->draw(glm::mat4{1.0f}, _mainDrawContext);
 
-    for (int x = -3; x < 3; x++)
-    {
-        glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.2));
-        glm::mat4 translation = glm::translate(scale, glm::vec3{x, 1, 0});
+    // for (int x = -3; x < 3; x++)
+    // {
+    //     glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.2));
+    //     glm::mat4 translation = glm::translate(scale, glm::vec3{x, 1, 0});
+    //
+    //     _loadedNodes["Cube"]->draw(translation * scale, _mainDrawContext);
+    // }
 
-        _loadedNodes["Cube"]->draw(translation * scale, _mainDrawContext);
-    }
+    _mainCamera.update();
 
-    _sceneData.view = glm::translate(glm::mat4(1.0), glm::vec3{0, 0, -5});
+    _sceneData.view = _mainCamera.get_view_matrix();
     // TODO: Following rotation is not used in the tutorial, but the model is rotated without it. Find out why.
-    _sceneData.view = glm::rotate(_sceneData.view, glm::radians(180.0f), glm::vec3{0, 1, 0});
     _sceneData.proj = glm::perspective(glm::radians(70.0f),
                                             (float)_windowExtent.width / (float)_windowExtent.height,
                                             // TODO: Swap near and far depth values as in the tutorial
