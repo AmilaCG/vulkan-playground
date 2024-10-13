@@ -101,6 +101,30 @@ struct GLTFMetallicRoughness
                                     DescriptorAllocatorGrowable& descriptorAllocator);
 };
 
+struct MeshNode : public Node
+{
+    void draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
+
+    std::shared_ptr<MeshAsset> mesh;
+};
+
+struct RenderObject
+{
+    uint32_t indexCount;
+    uint32_t firstIndex;
+    VkBuffer indexBuffer;
+
+    MaterialInstance* material;
+
+    glm::mat4 transform;
+    VkDeviceAddress vertexBufferAddress;
+};
+
+struct DrawContext
+{
+    std::vector<RenderObject> opaqueSurfaces;
+};
+
 constexpr unsigned int ONE_SEC_NS = 1000000000; // 1 second in nanoseconds
 constexpr unsigned int FRAME_OVERLAP = 2;
 
@@ -145,6 +169,7 @@ private:
     AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
     AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
     void destroy_image(const AllocatedImage& image);
+    void update_scene();
 
     bool _isInitialized{false};
     int _frameNumber{0};
@@ -177,10 +202,10 @@ private:
     VkExtent2D _drawExtent{};
     float _renderScale = 1.0f;
 
-    AllocatedImage _whiteImage;
-    AllocatedImage _blackImage;
-    AllocatedImage _greyImage;
-    AllocatedImage _errorCheckboardImage;
+    AllocatedImage _whiteImage{};
+    AllocatedImage _blackImage{};
+    AllocatedImage _greyImage{};
+    AllocatedImage _errorCheckboardImage{};
 
     VkSampler _defaultSamplerLinear{};
     VkSampler _defaultSamplerNearest{};
@@ -199,8 +224,8 @@ private:
     std::vector<ComputeEffect> backgroundEffects;
     int currentBackgroundEffect{0};
 
-    VkPipelineLayout _meshPipelineLayout;
-    VkPipeline _meshPipeline;
+    VkPipelineLayout _meshPipelineLayout{};
+    VkPipeline _meshPipeline{};
 
     std::vector<std::shared_ptr<MeshAsset>> _testMeshes;
 
@@ -208,4 +233,7 @@ private:
 
     MaterialInstance _defaultMaterialData{};
     GLTFMetallicRoughness _metalRoughMaterial{};
+
+    DrawContext _mainDrawContext{};
+    std::unordered_map<std::string, std::shared_ptr<Node>> _loadedNodes;
 };

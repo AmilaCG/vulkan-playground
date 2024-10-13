@@ -110,6 +110,8 @@ void VulkanEngine::draw()
 {
     FrameData& currentFrame = get_current_frame();
 
+    update_scene();
+
     // Wait until the GPU has finished rendering the last frame
     VK_CHECK(vkWaitForFences(_device, 1, &currentFrame._renderFence, true, ONE_SEC_NS));
 
@@ -591,49 +593,6 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
     writerTexture.update_set(_device, imageSet);
 
-    vkCmdBindDescriptorSets(cmd,
-                            VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            _meshPipelineLayout,
-                            0,
-                            1,
-                            &imageSet,
-                            0,
-                            nullptr);
-
-    const std::shared_ptr<MeshAsset> selectedMesh = _testMeshes[2];
-
-    GPUDrawPushConstants pushConstants{};
-    pushConstants.vertexBuffer = selectedMesh->meshBuffers.vertexBufferAddress;
-
-    glm::mat4 view{1.0f};
-    view = glm::translate(view, glm::vec3{0, 0, -5});
-    // TODO: Following rotation is not used in the tutorial, but the model is rotated without it. Find out why.
-    view = glm::rotate(view, glm::radians(180.0f), glm::vec3{0, 1, 0});
-    glm::mat4 projection = glm::perspective(glm::radians(70.0f),
-                                            (float)_drawExtent.width / (float)_drawExtent.height,
-                                            // TODO: Swap near and far depth values as in the tutorial
-                                            0.1f,
-                                            10000.0f);
-    // Invert Y axis on projection matrix so that to align with OpenGL coordinates as gltf uses OpenGL coordinates
-    projection[1][1] *= -1;
-    pushConstants.worldMatrix = projection * view;
-
-    vkCmdPushConstants(cmd,
-                       _meshPipelineLayout,
-                       VK_SHADER_STAGE_VERTEX_BIT,
-                       0,
-                       sizeof(GPUDrawPushConstants),
-                       &pushConstants);
-
-    vkCmdBindIndexBuffer(cmd, selectedMesh->meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
-    vkCmdDrawIndexed(cmd,
-                     selectedMesh->surfaces[0].count,
-                     1,
-                     selectedMesh->surfaces[0].startIndex,
-                     0,
-                     0);
-
     // Allocate a new uniform buffer for the scene data
     AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData),
                                                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -660,6 +619,42 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
                         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 
     writerUniform.update_set(_device, globalDescriptor);
+
+    for (const RenderObject& obj : _mainDrawContext.opaqueSurfaces)
+    {
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material->pipeline->pipeline);
+        vkCmdBindDescriptorSets(cmd,
+                                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                obj.material->pipeline->layout,
+                                0,
+                                1,
+                                &globalDescriptor,
+                                0,
+                                nullptr);
+
+        vkCmdBindDescriptorSets(cmd,
+                                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                obj.material->pipeline->layout,
+                                1,
+                                1,
+                                &obj.material->materialSet,
+                                0,
+                                nullptr);
+
+        vkCmdBindIndexBuffer(cmd, obj.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+        GPUDrawPushConstants pushConstants{};
+        pushConstants.vertexBuffer = obj.vertexBufferAddress;
+        pushConstants.worldMatrix = obj.transform;
+        vkCmdPushConstants(cmd,
+                           obj.material->pipeline->layout,
+                           VK_SHADER_STAGE_VERTEX_BIT,
+                           0,
+                           sizeof(GPUDrawPushConstants),
+                           &pushConstants);
+
+        vkCmdDrawIndexed(cmd, obj.indexCount, 1, obj.firstIndex, 0, 0);
+    }
 
     vkCmdEndRendering(cmd);
 }
@@ -1133,6 +1128,22 @@ void VulkanEngine::init_default_data()
                                                               materialResources,
                                                               _globalDescriptorAllocator);
 
+    for (auto& mesh : _testMeshes)
+    {
+        std::shared_ptr<MeshNode> newNode = std::make_shared<MeshNode>();
+        newNode->mesh = mesh;
+
+        newNode->localTransform = glm::mat4{1.0f};
+        newNode->worldTransform = glm::mat4{1.0f};
+
+        for (auto& surface : newNode->mesh->surfaces)
+        {
+            surface.material = std::make_shared<GLTFMaterial>(_defaultMaterialData);
+        }
+
+        _loadedNodes[mesh->name] = std::move(newNode);
+    }
+
     _mainDeletionQueue.push_function([&, materialConstants]()
     {
         destroy_image(_whiteImage);
@@ -1263,6 +1274,31 @@ void VulkanEngine::destroy_image(const AllocatedImage& image)
     vmaDestroyImage(_allocator, image.image, image.allocation);
 }
 
+void VulkanEngine::update_scene()
+{
+    _mainDrawContext.opaqueSurfaces.clear();
+
+    _loadedNodes["Suzanne"]->draw(glm::mat4{1.0f}, _mainDrawContext);
+
+    _sceneData.view = 1.0f;
+    _sceneData.view = glm::translate(_sceneData.view, glm::vec3{0, 0, -5});
+    // TODO: Following rotation is not used in the tutorial, but the model is rotated without it. Find out why.
+    _sceneData.view = glm::rotate(_sceneData.view, glm::radians(180.0f), glm::vec3{0, 1, 0});
+    _sceneData.proj = glm::perspective(glm::radians(70.0f),
+                                            (float)_windowExtent.width / (float)_windowExtent.height,
+                                            // TODO: Swap near and far depth values as in the tutorial
+                                            0.1f,
+                                            10000.0f);
+    // Invert Y axis on projection matrix so that to align with OpenGL coordinates as gltf uses OpenGL coordinates
+    _sceneData.proj[1][1] *= -1;
+    _sceneData.viewProj = _sceneData.proj * _sceneData.view;
+
+    // Some default lighting parameters
+    _sceneData.ambientColor = glm::vec4(0.1f);
+    _sceneData.sunlightColor = glm::vec4(1.0f);
+    _sceneData.sunlightDirection = glm::vec4(0, 1, 0.5, 1);
+}
+
 void GLTFMetallicRoughness::build_pipelines(VulkanEngine* engine)
 {
     VkShaderModule meshFragShader;
@@ -1378,4 +1414,26 @@ MaterialInstance GLTFMetallicRoughness::write_material(VkDevice device, Material
     writer.update_set(device, matData.materialSet);
 
     return matData;
+}
+
+void MeshNode::draw(const glm::mat4& topMatrix, DrawContext& ctx)
+{
+    glm::mat4 nodeMatrix = topMatrix * worldTransform;
+
+    for (auto& surface : mesh->surfaces)
+    {
+        RenderObject renderObject{};
+        renderObject.indexCount = surface.count;
+        renderObject.firstIndex = surface.startIndex;
+        renderObject.indexBuffer = mesh->meshBuffers.indexBuffer.buffer;
+        renderObject.material = &surface.material->data;
+
+        renderObject.transform = nodeMatrix;
+        renderObject.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
+
+        ctx.opaqueSurfaces.push_back(renderObject);
+    }
+
+    // Recurse down
+    Node::draw(topMatrix, ctx);
 }
