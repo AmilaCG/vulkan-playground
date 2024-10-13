@@ -1278,10 +1278,17 @@ void VulkanEngine::update_scene()
 {
     _mainDrawContext.opaqueSurfaces.clear();
 
-    _loadedNodes["Suzanne"]->draw(glm::mat4{1.0f}, _mainDrawContext);
+    // _loadedNodes["Suzanne"]->draw(glm::mat4{1.0f}, _mainDrawContext);
 
-    _sceneData.view = 1.0f;
-    _sceneData.view = glm::translate(_sceneData.view, glm::vec3{0, 0, -5});
+    for (int x = -3; x < 3; x++)
+    {
+        glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.2));
+        glm::mat4 translation = glm::translate(scale, glm::vec3{x, 1, 0});
+
+        _loadedNodes["Cube"]->draw(translation * scale, _mainDrawContext);
+    }
+
+    _sceneData.view = glm::translate(glm::mat4(1.0), glm::vec3{0, 0, -5});
     // TODO: Following rotation is not used in the tutorial, but the model is rotated without it. Find out why.
     _sceneData.view = glm::rotate(_sceneData.view, glm::radians(180.0f), glm::vec3{0, 1, 0});
     _sceneData.proj = glm::perspective(glm::radians(70.0f),
