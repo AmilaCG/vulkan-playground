@@ -31,6 +31,7 @@ auto VERT_SHADER_TRIANGLE_MESH = "colored_triangle_mesh.vert.spv";
 auto VERT_SHADER_MESH = "mesh.vert.spv";
 
 auto MESH_BASIC = "Assets/basicmesh.glb";
+auto MESH_STRUCTURE = "Assets/structure.glb";
 
 VulkanEngine* loadedEngine = nullptr;
 constexpr bool bUseValidationLayers = true;
@@ -72,6 +73,10 @@ void VulkanEngine::init()
     _mainCamera.pitch = 0;
     _mainCamera.yaw = 0;
 
+    auto structureFile = load_gltf(this, MESH_STRUCTURE);
+    assert(structureFile.has_value());
+    _loadedScenes["structure"] = *structureFile;
+
     // everything went fine
     _isInitialized = true;
 }
@@ -81,6 +86,8 @@ void VulkanEngine::cleanup()
     if (_isInitialized)
     {
         vkDeviceWaitIdle(_device);
+
+        _loadedScenes.clear();
 
         for (FrameData& frame : _frames)
         {
@@ -1287,15 +1294,9 @@ void VulkanEngine::update_scene()
 {
     _mainDrawContext.opaqueSurfaces.clear();
 
-    _loadedNodes["Suzanne"]->draw(glm::mat4{1.0f}, _mainDrawContext);
-
-    // for (int x = -3; x < 3; x++)
-    // {
-    //     glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.2));
-    //     glm::mat4 translation = glm::translate(scale, glm::vec3{x, 1, 0});
-    //
-    //     _loadedNodes["Cube"]->draw(translation * scale, _mainDrawContext);
-    // }
+    // _loadedNodes["Suzanne"]->draw(glm::mat4{1.0f}, _mainDrawContext);
+    _loadedScenes["structure"]->draw(glm::mat4{1.0f}, _mainDrawContext);
+    _mainCamera.position = glm::vec3(30.f, -00.f, -085.f);
 
     _mainCamera.update();
 

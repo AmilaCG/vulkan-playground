@@ -140,11 +140,21 @@ public:
     void run();
 
     GPUMeshBuffers upload_mesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
+    AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 
     VkDevice _device{};
     VkDescriptorSetLayout _gpuSceneDataDescriptorLayout{};
     AllocatedImage _drawImage{};
     AllocatedImage _depthImage{};
+    AllocatedImage _errorCheckboardImage{};
+    AllocatedImage _whiteImage{};
+    AllocatedImage _blackImage{};
+    AllocatedImage _greyImage{};
+
+    VkSampler _defaultSamplerLinear{};
+    VkSampler _defaultSamplerNearest{};
+
+    GLTFMetallicRoughness _metalRoughMaterial{};
 
 private:
     void init_vulkan();
@@ -162,7 +172,6 @@ private:
     void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
     void init_imgui();
     void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
-    AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
     void destroy_buffer(const AllocatedBuffer& buffer);
     void init_mesh_pipeline();
     void init_default_data();
@@ -203,14 +212,6 @@ private:
     VkExtent2D _drawExtent{};
     float _renderScale = 1.0f;
 
-    AllocatedImage _whiteImage{};
-    AllocatedImage _blackImage{};
-    AllocatedImage _greyImage{};
-    AllocatedImage _errorCheckboardImage{};
-
-    VkSampler _defaultSamplerLinear{};
-    VkSampler _defaultSamplerNearest{};
-
     DescriptorAllocatorGrowable _globalDescriptorAllocator{};
     VkDescriptorSet _drawImageDescriptors{};
     VkDescriptorSetLayout _drawImageDescriptorLayout{};
@@ -233,10 +234,11 @@ private:
     GPUSceneData _sceneData{};
 
     MaterialInstance _defaultMaterialData{};
-    GLTFMetallicRoughness _metalRoughMaterial{};
 
     DrawContext _mainDrawContext{};
     std::unordered_map<std::string, std::shared_ptr<Node>> _loadedNodes;
 
     Camera _mainCamera{};
+
+    std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> _loadedScenes;
 };
