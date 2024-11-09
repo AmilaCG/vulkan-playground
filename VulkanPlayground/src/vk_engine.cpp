@@ -69,7 +69,7 @@ void VulkanEngine::init()
     init_default_data();
 
     _mainCamera.velocity = glm::vec3(0);
-    _mainCamera.position = glm::vec3(0, 0, 5);
+    _mainCamera.position = glm::vec3(30.f, -00.f, -085.f);
     _mainCamera.pitch = 0;
     _mainCamera.yaw = 0;
 
@@ -1296,7 +1296,6 @@ void VulkanEngine::update_scene()
 
     // _loadedNodes["Suzanne"]->draw(glm::mat4{1.0f}, _mainDrawContext);
     _loadedScenes["structure"]->draw(glm::mat4{1.0f}, _mainDrawContext);
-    _mainCamera.position = glm::vec3(30.f, -00.f, -085.f);
 
     _mainCamera.update();
 
