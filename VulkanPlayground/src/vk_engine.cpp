@@ -48,6 +48,9 @@ void VulkanEngine::init()
     // We initialize SDL and create a window with it.
     SDL_Init(SDL_INIT_VIDEO);
 
+    // Lock and hide mouse cursor
+    SDL_SetRelativeMouseMode(SDL_TRUE);
+
     constexpr auto windowFlags = static_cast<SDL_WindowFlags>(SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 
     _window = SDL_CreateWindow(
@@ -272,6 +275,12 @@ void VulkanEngine::run()
                 {
                     _stopRendering = false;
                 }
+            }
+
+            if (e.type == SDL_KEYDOWN)
+            {
+                if (e.key.keysym.sym == SDLK_ESCAPE) { SDL_SetRelativeMouseMode(SDL_FALSE); }
+                if (e.key.keysym.sym == SDLK_l) { SDL_SetRelativeMouseMode(SDL_TRUE); }
             }
 
             _mainCamera.process_sdl_event(e);
