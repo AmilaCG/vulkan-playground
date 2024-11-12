@@ -594,8 +594,8 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
     viewport.y = 0;
     viewport.width = _drawExtent.width;
     viewport.height = _drawExtent.height;
-    viewport.minDepth = 0.f;
-    viewport.maxDepth = 1.f;
+    viewport.minDepth = 1.0f;
+    viewport.maxDepth = 0.0f;
     vkCmdSetViewport(cmd, 0, 1, &viewport);
 
     VkRect2D scissor{};
@@ -1240,12 +1240,9 @@ void VulkanEngine::update_scene()
     _mainDrawContext.opaqueSurfaces.clear();
     _mainDrawContext.transparentSurfaces.clear();
 
-    _loadedScenes["structure"]->draw(glm::mat4{1.0f}, _mainDrawContext);
-
     _mainCamera.update();
 
     _sceneData.view = _mainCamera.get_view_matrix();
-    // TODO: Following rotation is not used in the tutorial, but the model is rotated without it. Find out why.
     _sceneData.proj = glm::perspective(glm::radians(70.0f),
                                             (float)_windowExtent.width / (float)_windowExtent.height,
                                             // TODO: Swap near and far depth values as in the tutorial
@@ -1259,6 +1256,8 @@ void VulkanEngine::update_scene()
     _sceneData.ambientColor = glm::vec4(0.1f);
     _sceneData.sunlightColor = glm::vec4(1.0f);
     _sceneData.sunlightDirection = glm::vec4(0, 1, 0.5, 1);
+
+    _loadedScenes["structure"]->draw(glm::mat4{1.0f}, _mainDrawContext);
 }
 
 void GLTFMetallicRoughness::build_pipelines(VulkanEngine* engine)
