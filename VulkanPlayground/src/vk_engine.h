@@ -141,6 +141,9 @@ public:
 
     GPUMeshBuffers upload_mesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
     AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+    AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+    void destroy_buffer(const AllocatedBuffer& buffer);
+    void destroy_image(const AllocatedImage& image);
 
     VkDevice _device{};
     VkDescriptorSetLayout _gpuSceneDataDescriptorLayout{};
@@ -172,13 +175,9 @@ private:
     void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
     void init_imgui();
     void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
-    void destroy_buffer(const AllocatedBuffer& buffer);
-    void init_mesh_pipeline();
     void init_default_data();
     void resize_swapchain();
     AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
-    AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
-    void destroy_image(const AllocatedImage& image);
     void update_scene();
 
     bool _isInitialized{false};
@@ -225,11 +224,6 @@ private:
     VkPipelineLayout _gradientPipelineLayout{};
     std::vector<ComputeEffect> backgroundEffects;
     int currentBackgroundEffect{0};
-
-    VkPipelineLayout _meshPipelineLayout{};
-    VkPipeline _meshPipeline{};
-
-    std::vector<std::shared_ptr<MeshAsset>> _testMeshes;
 
     GPUSceneData _sceneData{};
 

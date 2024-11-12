@@ -76,10 +76,6 @@ void VulkanEngine::init()
     _mainCamera.pitch = 0;
     _mainCamera.yaw = 0;
 
-    auto structureFile = load_gltf(this, MESH_STRUCTURE);
-    assert(structureFile.has_value());
-    _loadedScenes["structure"] = *structureFile;
-
     // everything went fine
     _isInitialized = true;
 }
@@ -587,7 +583,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
     VkRenderingInfo renderInfo = vkinit::rendering_info(_drawExtent, &colorAttachment, &depthAttachment);
     vkCmdBeginRendering(cmd, &renderInfo);
 
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipeline);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _metalRoughMaterial.opaquePipeline.pipeline);
 
     // Set dynamic viewport and scissor. This should be done after binding to a pipeline.
     VkViewport viewport{};
@@ -754,8 +750,6 @@ void VulkanEngine::init_pipelines()
     init_background_pipelines();
 
     // Graphics pipelines
-    init_mesh_pipeline();
-
     _metalRoughMaterial.build_pipelines(this);
 }
 
@@ -1030,61 +1024,8 @@ GPUMeshBuffers VulkanEngine::upload_mesh(std::span<uint32_t> indices, std::span<
     return newSurface;
 }
 
-void VulkanEngine::init_mesh_pipeline()
-{
-    VkShaderModule triangleFragShader{};
-    if (!vkutil::load_shader_module(FRAG_SHADER_TEXTURE, _device, triangleFragShader))
-    {
-        fmt::print("Triangle fragment shader loading failed!");
-    }
-
-    VkShaderModule triangleVertShader{};
-    if (!vkutil::load_shader_module(VERT_SHADER_TRIANGLE_MESH, _device, triangleVertShader))
-    {
-        fmt::print("Triangle vertex shader loading failed!");
-    }
-
-    VkPushConstantRange bufferRange{};
-    bufferRange.size = sizeof(GPUDrawPushConstants);
-    bufferRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo = vkinit::pipeline_layout_create_info();
-    pipelineLayoutInfo.pPushConstantRanges = &bufferRange;
-    pipelineLayoutInfo.pushConstantRangeCount = 1;
-    pipelineLayoutInfo.pSetLayouts = &_singleImageDescriptorLayout;
-    pipelineLayoutInfo.setLayoutCount = 1;
-
-    VK_CHECK(vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &_meshPipelineLayout));
-
-    PipelineBuilder pipelineBuilder;
-
-    pipelineBuilder._pipelineLayout = _meshPipelineLayout;
-    pipelineBuilder.set_shaders(triangleVertShader, triangleFragShader);
-    pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-    pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-    pipelineBuilder.set_multisampling_none();
-    pipelineBuilder.enable_blending_additive();
-    pipelineBuilder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
-    pipelineBuilder.set_color_attachment_format(_drawImage.imageFormat);
-    pipelineBuilder.set_depth_format(_depthImage.imageFormat);
-
-    _meshPipeline = pipelineBuilder.build_pipeline(_device);
-
-    vkDestroyShaderModule(_device, triangleFragShader, nullptr);
-    vkDestroyShaderModule(_device, triangleVertShader, nullptr);
-
-    _mainDeletionQueue.push_function([&]()
-    {
-        vkDestroyPipelineLayout(_device, _meshPipelineLayout, nullptr);
-        vkDestroyPipeline(_device, _meshPipeline, nullptr);
-    });
-}
-
 void VulkanEngine::init_default_data()
 {
-    _testMeshes = load_gltf_meshes(this, MESH_BASIC).value();
-
     uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
     _whiteImage = create_image(&white,
                                VkExtent3D{1, 1, 1},
@@ -1153,21 +1094,9 @@ void VulkanEngine::init_default_data()
                                                               materialResources,
                                                               _globalDescriptorAllocator);
 
-    for (auto& mesh : _testMeshes)
-    {
-        std::shared_ptr<MeshNode> newNode = std::make_shared<MeshNode>();
-        newNode->mesh = mesh;
-
-        newNode->localTransform = glm::mat4{1.0f};
-        newNode->worldTransform = glm::mat4{1.0f};
-
-        for (auto& surface : newNode->mesh->surfaces)
-        {
-            surface.material = std::make_shared<GLTFMaterial>(_defaultMaterialData);
-        }
-
-        _loadedNodes[mesh->name] = std::move(newNode);
-    }
+    auto structureFile = load_gltf(this, MESH_STRUCTURE);
+    assert(structureFile.has_value());
+    _loadedScenes["structure"] = *structureFile;
 
     _mainDeletionQueue.push_function([&, materialConstants]()
     {
@@ -1178,12 +1107,6 @@ void VulkanEngine::init_default_data()
 
         vkDestroySampler(_device, _defaultSamplerNearest, nullptr);
         vkDestroySampler(_device, _defaultSamplerLinear, nullptr);
-
-        for (const std::shared_ptr<MeshAsset>& mesh : _testMeshes)
-        {
-            destroy_buffer(mesh->meshBuffers.indexBuffer);
-            destroy_buffer(mesh->meshBuffers.vertexBuffer);
-        }
 
         destroy_buffer(materialConstants);
     });

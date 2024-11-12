@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <filesystem>
+#include <fastgltf/glm_element_traits.hpp>
 
 #include "vk_descriptors.h"
 #include "vk_types.h"
@@ -51,6 +52,8 @@ public:
     AllocatedBuffer materialDataBuffer;
     VulkanEngine* creator;
 };
+
+std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& asset, fastgltf::Image& image);
 
 std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(VulkanEngine* engine, std::string_view filePath);
 
