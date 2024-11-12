@@ -279,7 +279,10 @@ void VulkanEngine::run()
                 if (e.key.keysym.sym == SDLK_l) { SDL_SetRelativeMouseMode(SDL_TRUE); }
             }
 
-            _mainCamera.process_sdl_event(e);
+            if (SDL_GetRelativeMouseMode())
+            {
+                _mainCamera.process_sdl_event(e);
+            }
 
             // Send SDL event to imgui for handling
             ImGui_ImplSDL2_ProcessEvent(&e);
