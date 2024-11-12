@@ -644,7 +644,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
     writerUniform.update_set(_device, globalDescriptor);
 
-    for (const RenderObject& obj : _mainDrawContext.opaqueSurfaces)
+    auto draw = [&](const RenderObject& obj)
     {
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material->pipeline->pipeline);
         vkCmdBindDescriptorSets(cmd,
@@ -678,6 +678,16 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
                            &pushConstants);
 
         vkCmdDrawIndexed(cmd, obj.indexCount, 1, obj.firstIndex, 0, 0);
+    };
+
+    for (const RenderObject& rObj : _mainDrawContext.opaqueSurfaces)
+    {
+        draw(rObj);
+    }
+
+    for (const RenderObject& rObj : _mainDrawContext.transparentSurfaces)
+    {
+        draw(rObj);
     }
 
     vkCmdEndRendering(cmd);
@@ -1228,8 +1238,8 @@ void VulkanEngine::destroy_image(const AllocatedImage& image)
 void VulkanEngine::update_scene()
 {
     _mainDrawContext.opaqueSurfaces.clear();
+    _mainDrawContext.transparentSurfaces.clear();
 
-    // _loadedNodes["Suzanne"]->draw(glm::mat4{1.0f}, _mainDrawContext);
     _loadedScenes["structure"]->draw(glm::mat4{1.0f}, _mainDrawContext);
 
     _mainCamera.update();
@@ -1383,7 +1393,14 @@ void MeshNode::draw(const glm::mat4& topMatrix, DrawContext& ctx)
         renderObject.transform = nodeMatrix;
         renderObject.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
 
-        ctx.opaqueSurfaces.push_back(renderObject);
+        if (surface.material->data.passType == MaterialPass::Transparent)
+        {
+            ctx.transparentSurfaces.push_back(renderObject);
+        }
+        else
+        {
+            ctx.opaqueSurfaces.push_back(renderObject);
+        }
     }
 
     // Recurse down

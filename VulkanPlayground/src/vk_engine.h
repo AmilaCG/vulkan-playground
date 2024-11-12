@@ -124,6 +124,7 @@ struct RenderObject
 struct DrawContext
 {
     std::vector<RenderObject> opaqueSurfaces;
+    std::vector<RenderObject> transparentSurfaces;
 };
 
 constexpr unsigned int ONE_SEC_NS = 1000000000; // 1 second in nanoseconds
