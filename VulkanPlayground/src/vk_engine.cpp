@@ -31,7 +31,9 @@ auto VERT_SHADER_TRIANGLE_MESH = "colored_triangle_mesh.vert.spv";
 auto VERT_SHADER_MESH = "mesh.vert.spv";
 
 auto MESH_BASIC = "Assets/basicmesh.glb";
-auto MESH_STRUCTURE = "Assets/structure.glb";
+auto SCENE_FILE = "Assets/bistro.glb";
+
+auto SCENE_NAME = "scene";
 
 VulkanEngine* loadedEngine = nullptr;
 constexpr bool bUseValidationLayers = true;
@@ -1107,9 +1109,9 @@ void VulkanEngine::init_default_data()
                                                               materialResources,
                                                               _globalDescriptorAllocator);
 
-    auto structureFile = load_gltf(this, MESH_STRUCTURE);
+    auto structureFile = load_gltf(this, SCENE_FILE);
     assert(structureFile.has_value());
-    _loadedScenes["structure"] = *structureFile;
+    _loadedScenes[SCENE_NAME] = *structureFile;
 
     _mainDeletionQueue.push_function([&, materialConstants]()
     {
@@ -1257,7 +1259,7 @@ void VulkanEngine::update_scene()
     _sceneData.sunlightColor = glm::vec4(1.0f);
     _sceneData.sunlightDirection = glm::vec4(0, 1, 0.5, 1);
 
-    _loadedScenes["structure"]->draw(glm::mat4{1.0f}, _mainDrawContext);
+    _loadedScenes[SCENE_NAME]->draw(glm::mat4{1.0f}, _mainDrawContext);
 }
 
 void GLTFMetallicRoughness::build_pipelines(VulkanEngine* engine)

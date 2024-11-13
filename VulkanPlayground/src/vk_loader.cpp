@@ -329,11 +329,17 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(VulkanEngine* engine, std::
         materialResources.dataBufferOffset = dataIndex * sizeof(GLTFMetallicRoughness::MaterialConstants);
         // Grab textures from gltf file
         if (mat.pbrData.baseColorTexture.has_value()) {
-            size_t img = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex].imageIndex.value();
-            size_t sampler = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex].samplerIndex.value();
-
-            materialResources.colorImage = images[img];
-            materialResources.colorSampler = file.samplers[sampler];
+            auto texture = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex];
+            if (texture.imageIndex.has_value())
+            {
+                size_t img = texture.imageIndex.value();
+                materialResources.colorImage = images[img];
+            }
+            if (texture.samplerIndex.has_value())
+            {
+                size_t sampler = texture.samplerIndex.value();
+                materialResources.colorSampler = file.samplers[sampler];
+            }
         }
         // Build material
         newMat->data = engine->_metalRoughMaterial.write_material(engine->_device,
