@@ -31,7 +31,7 @@ auto VERT_SHADER_TRIANGLE_MESH = "colored_triangle_mesh.vert.spv";
 auto VERT_SHADER_MESH = "mesh.vert.spv";
 
 auto MESH_BASIC = "Assets/basicmesh.glb";
-auto SCENE_FILE = "Assets/bistro.glb";
+auto SCENE_FILE = "Assets/structure.glb";
 
 auto SCENE_NAME = "scene";
 
