@@ -22,14 +22,27 @@ glm::mat4 Camera::get_rotation_matrix()
     return glm::toMat4(yawRotation) * glm::toMat4(pitchRotation);
 }
 
+void Camera::increment_velocity_multiplier(const float multiplier)
+{
+    velocityMultiplier += multiplier;
+}
+
+void Camera::decrement_velocity_multiplier(const float multiplier)
+{
+    if (velocityMultiplier >= 0.1f)
+    {
+        velocityMultiplier -= multiplier;
+    }
+}
+
 void Camera::process_sdl_event(SDL_Event& event)
 {
     if (event.type == SDL_KEYDOWN)
     {
-        if (event.key.keysym.sym == SDLK_w) { velocity.z = -1; }
-        if (event.key.keysym.sym == SDLK_s) { velocity.z = 1; }
-        if (event.key.keysym.sym == SDLK_a) { velocity.x = -1; }
-        if (event.key.keysym.sym == SDLK_d) { velocity.x = 1; }
+        if (event.key.keysym.sym == SDLK_w) { velocity.z = -1 * velocityMultiplier; }
+        if (event.key.keysym.sym == SDLK_s) { velocity.z = 1 * velocityMultiplier; }
+        if (event.key.keysym.sym == SDLK_a) { velocity.x = -1 * velocityMultiplier; }
+        if (event.key.keysym.sym == SDLK_d) { velocity.x = 1 * velocityMultiplier; }
     }
 
     if (event.type == SDL_KEYUP)

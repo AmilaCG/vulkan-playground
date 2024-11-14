@@ -281,6 +281,18 @@ void VulkanEngine::run()
                 if (e.key.keysym.sym == SDLK_l) { SDL_SetRelativeMouseMode(SDL_TRUE); }
             }
 
+            if (e.type == SDL_MOUSEWHEEL)
+            {
+                if (e.wheel.y > 0)
+                {
+                    _mainCamera.increment_velocity_multiplier(0.1);
+                }
+                if (e.wheel.y < 0)
+                {
+                    _mainCamera.decrement_velocity_multiplier(0.1);
+                }
+            }
+
             if (SDL_GetRelativeMouseMode())
             {
                 _mainCamera.process_sdl_event(e);
