@@ -127,6 +127,15 @@ struct DrawContext
     std::vector<RenderObject> transparentSurfaces;
 };
 
+struct EngineStats
+{
+    float frameTime;
+    int triangleCount;
+    int drawCallCount;
+    float sceneUpdateTime;
+    float meshDrawTime;
+};
+
 constexpr unsigned int ONE_SEC_NS = 1000000000; // 1 second in nanoseconds
 constexpr unsigned int FRAME_OVERLAP = 2;
 
@@ -241,4 +250,6 @@ private:
     Camera _mainCamera{};
 
     std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> _loadedScenes;
+
+    EngineStats _stats{};
 };

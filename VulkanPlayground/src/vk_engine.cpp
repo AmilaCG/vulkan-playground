@@ -254,6 +254,8 @@ void VulkanEngine::run()
     // main loop
     while (!bQuit)
     {
+        auto start = std::chrono::system_clock::now();
+
         // Handle events on queue
         while (SDL_PollEvent(&e) != 0)
         {
@@ -345,10 +347,35 @@ void VulkanEngine::run()
         }
         ImGui::End();
 
+        static ImGuiWindowFlags stats_window_flags = 0;
+        stats_window_flags |= ImGuiWindowFlags_NoMove;
+        stats_window_flags |= ImGuiWindowFlags_NoCollapse;
+        stats_window_flags |= ImGuiWindowFlags_NoTitleBar;
+        stats_window_flags |= ImGuiWindowFlags_AlwaysAutoResize;
+
+        if (ImGui::Begin("Stats", nullptr, stats_window_flags))
+        {
+            constexpr float offset = 10;
+            ImGui::SetWindowPos(ImVec2(_windowExtent.width - ImGui::GetWindowWidth() - offset,
+                                       offset), ImGuiCond_Always);
+            ImGui::SeparatorText("Stats");
+            ImGui::Text("FPS %.1f", 1000.0f / _stats.frameTime);
+            ImGui::Text("Frame time %f ms", _stats.frameTime);
+            ImGui::Text("Draw time %f ms", _stats.meshDrawTime);
+            ImGui::Text("Update time %f ms", _stats.sceneUpdateTime);
+            ImGui::Text("Triangles %i", _stats.triangleCount);
+            ImGui::Text("Draws %i", _stats.drawCallCount);
+        }
+        ImGui::End();
+
         // Make imgui calculate it's internal draw structures. It will not draw anything yet.
         ImGui::Render();
 
         draw();
+
+        auto end = std::chrono::system_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+        _stats.frameTime = elapsed.count() / 1000.0f;
     }
 }
 
@@ -597,6 +624,11 @@ void VulkanEngine::draw_background(VkCommandBuffer cmd)
 
 void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 {
+    _stats.drawCallCount = 0;
+    _stats.triangleCount = 0;
+
+    auto start = std::chrono::system_clock::now();
+
     // Begin a render pass connected to the draw image
     VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView,
                                                                         nullptr,
@@ -713,6 +745,10 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
     }
 
     vkCmdEndRendering(cmd);
+
+    auto end = std::chrono::system_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    _stats.meshDrawTime = elapsed.count() / 1000.0f;
 }
 
 void VulkanEngine::init_descriptors()
@@ -1259,6 +1295,8 @@ void VulkanEngine::destroy_image(const AllocatedImage& image)
 
 void VulkanEngine::update_scene()
 {
+    auto start = std::chrono::system_clock::now();
+
     _mainDrawContext.opaqueSurfaces.clear();
     _mainDrawContext.transparentSurfaces.clear();
 
@@ -1275,6 +1313,10 @@ void VulkanEngine::update_scene()
     _sceneData.viewProj = _sceneData.proj * _sceneData.view;
 
     _loadedScenes[SCENE_NAME]->draw(glm::mat4{1.0f}, _mainDrawContext);
+
+    auto end = std::chrono::system_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    _stats.sceneUpdateTime = elapsed.count() / 1000.0f;
 }
 
 void GLTFMetallicRoughness::build_pipelines(VulkanEngine* engine)
