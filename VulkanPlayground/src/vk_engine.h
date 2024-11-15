@@ -130,8 +130,8 @@ struct DrawContext
 struct EngineStats
 {
     float frameTime;
-    int triangleCount;
-    int drawCallCount;
+    unsigned int triangleCount;
+    unsigned int drawCallCount;
     float sceneUpdateTime;
     float meshDrawTime;
 };

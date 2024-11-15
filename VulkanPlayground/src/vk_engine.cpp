@@ -364,7 +364,7 @@ void VulkanEngine::run()
             ImGui::Text("Draw time %f ms", _stats.meshDrawTime);
             ImGui::Text("Update time %f ms", _stats.sceneUpdateTime);
             ImGui::Text("Triangles %i", _stats.triangleCount);
-            ImGui::Text("Draws %i", _stats.drawCallCount);
+            ImGui::Text("Draw calls %i", _stats.drawCallCount);
         }
         ImGui::End();
 
@@ -732,6 +732,9 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
                            &pushConstants);
 
         vkCmdDrawIndexed(cmd, obj.indexCount, 1, obj.firstIndex, 0, 0);
+
+        _stats.drawCallCount++;
+        _stats.triangleCount += obj.indexCount / 3;
     };
 
     for (const RenderObject& rObj : _mainDrawContext.opaqueSurfaces)
