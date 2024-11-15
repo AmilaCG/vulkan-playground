@@ -226,7 +226,12 @@ private:
     std::vector<ComputeEffect> backgroundEffects;
     int currentBackgroundEffect{0};
 
-    GPUSceneData _sceneData{};
+    GPUSceneData _sceneData
+    {
+        .ambientColor = glm::vec4(0.1f),
+        .sunlightDirection = glm::vec4(0, 1, 0.5, 1),
+        .sunlightColor = glm::vec4(1.0f),
+    };
 
     MaterialInstance _defaultMaterialData{};
 

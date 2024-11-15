@@ -320,20 +320,28 @@ void VulkanEngine::run()
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
-        if (ImGui::Begin("background"))
+        if (ImGui::Begin("Settings"))
         {
             ImGui::SliderFloat("Render Scale", &_renderScale, 0.3f, 1.0f);
 
             ComputeEffect& selected = backgroundEffects[currentBackgroundEffect];
 
             ImGui::Text("Selected effect: ", selected.name);
-
             ImGui::SliderInt("Effect Index", &currentBackgroundEffect, 0, backgroundEffects.size() - 1);
-
             ImGui::InputFloat4("data1", (float*)& selected.data.data1);
             ImGui::InputFloat4("data2", (float*)& selected.data.data2);
             ImGui::InputFloat4("data3", (float*)& selected.data.data3);
             ImGui::InputFloat4("data4", (float*)& selected.data.data4);
+
+            ImGui::Spacing();
+            ImGui::SeparatorText("Lights");
+
+            ImGui::Text("Ambient:");
+            ImGui::InputFloat4("Ambient color", (float*)& _sceneData.ambientColor);
+
+            ImGui::Text("Directional:");
+            ImGui::InputFloat4("Color", (float*)& _sceneData.sunlightColor);
+            ImGui::InputFloat4("Direction", (float*)& _sceneData.sunlightDirection);
         }
         ImGui::End();
 
@@ -1265,11 +1273,6 @@ void VulkanEngine::update_scene()
     // Invert Y axis on projection matrix so that to align with OpenGL coordinates as gltf uses OpenGL coordinates
     _sceneData.proj[1][1] *= -1;
     _sceneData.viewProj = _sceneData.proj * _sceneData.view;
-
-    // Some default lighting parameters
-    _sceneData.ambientColor = glm::vec4(0.1f);
-    _sceneData.sunlightColor = glm::vec4(1.0f);
-    _sceneData.sunlightDirection = glm::vec4(0, 1, 0.5, 1);
 
     _loadedScenes[SCENE_NAME]->draw(glm::mat4{1.0f}, _mainDrawContext);
 }
