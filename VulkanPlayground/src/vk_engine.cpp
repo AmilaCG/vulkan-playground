@@ -640,25 +640,6 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
     VkRenderingInfo renderInfo = vkinit::rendering_info(_drawExtent, &colorAttachment, &depthAttachment);
     vkCmdBeginRendering(cmd, &renderInfo);
 
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _metalRoughMaterial.opaquePipeline.pipeline);
-
-    // Set dynamic viewport and scissor. This should be done after binding to a pipeline.
-    VkViewport viewport{};
-    viewport.x = 0;
-    viewport.y = 0;
-    viewport.width = _drawExtent.width;
-    viewport.height = _drawExtent.height;
-    viewport.minDepth = 1.0f;
-    viewport.maxDepth = 0.0f;
-    vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-    VkRect2D scissor{};
-    scissor.offset.x = 0;
-    scissor.offset.y = 0;
-    scissor.extent.width = _drawExtent.width;
-    scissor.extent.height = _drawExtent.height;
-    vkCmdSetScissor(cmd, 0, 1, &scissor);
-
     // Bind a texture
     VkDescriptorSet imageSet = get_current_frame()._frameDescriptors.allocate(_device,
                                                                               _singleImageDescriptorLayout);
@@ -698,28 +679,66 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
     writerUniform.update_set(_device, globalDescriptor);
 
+    MaterialPipeline* lastPipeline = nullptr;
+    MaterialInstance* lastMaterial = nullptr;
+    VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+
     auto draw = [&](const RenderObject& obj)
     {
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material->pipeline->pipeline);
-        vkCmdBindDescriptorSets(cmd,
-                                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                obj.material->pipeline->layout,
-                                0,
-                                1,
-                                &globalDescriptor,
-                                0,
-                                nullptr);
+        if (obj.material != lastMaterial)
+        {
+            lastMaterial = obj.material;
 
-        vkCmdBindDescriptorSets(cmd,
-                                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                obj.material->pipeline->layout,
-                                1,
-                                1,
-                                &obj.material->materialSet,
-                                0,
-                                nullptr);
+            if (obj.material->pipeline != lastPipeline)
+            {
+                lastPipeline = obj.material->pipeline;
 
-        vkCmdBindIndexBuffer(cmd, obj.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+                // Rebind pipeline and scene descriptors if the pipeline is changed
+                vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material->pipeline->pipeline);
+                vkCmdBindDescriptorSets(cmd,
+                                        VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                        obj.material->pipeline->layout,
+                                        0,
+                                        1,
+                                        &globalDescriptor,
+                                        0,
+                                        nullptr);
+
+                // Set dynamic viewport and scissor. This should be done after binding to a pipeline.
+                VkViewport viewport{};
+                viewport.x = 0;
+                viewport.y = 0;
+                viewport.width = _drawExtent.width;
+                viewport.height = _drawExtent.height;
+                viewport.minDepth = 1.0f;
+                viewport.maxDepth = 0.0f;
+                vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+                VkRect2D scissor{};
+                scissor.offset.x = 0;
+                scissor.offset.y = 0;
+                scissor.extent.width = _drawExtent.width;
+                scissor.extent.height = _drawExtent.height;
+                vkCmdSetScissor(cmd, 0, 1, &scissor);
+            }
+
+            // Rebind material descriptors if the material is changed
+            vkCmdBindDescriptorSets(cmd,
+                                    VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                    obj.material->pipeline->layout,
+                                    1,
+                                    1,
+                                    &obj.material->materialSet,
+                                    0,
+                                    nullptr);
+        }
+
+        // Rebind index buffer if needed
+        if (obj.indexBuffer != lastIndexBuffer)
+        {
+            lastIndexBuffer = obj.indexBuffer;
+            vkCmdBindIndexBuffer(cmd, obj.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        }
 
         GPUDrawPushConstants pushConstants{};
         pushConstants.vertexBuffer = obj.vertexBufferAddress;
