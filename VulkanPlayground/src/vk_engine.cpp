@@ -629,6 +629,27 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
     auto start = std::chrono::system_clock::now();
 
+    std::vector<uint32_t> opaqueDraws(_mainDrawContext.opaqueSurfaces.size());
+    for (uint32_t i = 0; i < _mainDrawContext.opaqueSurfaces.size(); i++)
+    {
+        opaqueDraws[i] = i;
+    }
+
+    // Sort opaque surfaces by material. This will minimize the number of descriptor set
+    // bindings, as it will go material by material.
+    std::ranges::sort(opaqueDraws, [&](const auto& idxA, const auto& idxB)
+    {
+        const RenderObject& objA = _mainDrawContext.opaqueSurfaces[idxA];
+        const RenderObject& objB = _mainDrawContext.opaqueSurfaces[idxB];
+
+        if (objA.material == objB.material)
+        {
+            return objA.indexBuffer < objB.indexBuffer;
+        }
+
+        return objA.material < objB.material;
+    });
+
     // Begin a render pass connected to the draw image
     VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView,
                                                                         nullptr,
@@ -756,9 +777,9 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
         _stats.triangleCount += obj.indexCount / 3;
     };
 
-    for (const RenderObject& rObj : _mainDrawContext.opaqueSurfaces)
+    for (const auto& index : opaqueDraws)
     {
-        draw(rObj);
+        draw(_mainDrawContext.opaqueSurfaces[index]);
     }
 
     for (const RenderObject& rObj : _mainDrawContext.transparentSurfaces)
