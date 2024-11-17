@@ -39,6 +39,48 @@ VulkanEngine* loadedEngine = nullptr;
 constexpr bool bUseValidationLayers = true;
 bool resizeRequested = false;
 
+bool is_visible(const RenderObject& obj, const glm::mat4& viewProj)
+{
+    std::array corners
+    {
+        glm::vec3{1, 1, 1},
+        glm::vec3{1, 1, -1},
+        glm::vec3{1, -1, 1},
+        glm::vec3{1, -1, -1},
+        glm::vec3{-1, 1, 1},
+        glm::vec3{-1, 1, -1},
+        glm::vec3{-1, -1, 1},
+        glm::vec3{-1, -1, -1},
+    };
+
+    glm::mat4 matrix = viewProj * obj.transform;
+
+    glm::vec3 min = {1.5, 1.5, 1.5};
+    glm::vec3 max = {-1.5, -1.5, -1.5};
+
+    for (int corner = 0; corner < 8; corner++)
+    {
+        // Project each corner into clip space
+        glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + (corners[corner] * obj.bounds.extents), 1.0f);
+
+        // Perspective correction
+        v.x = v.x / v.w;
+        v.y = v.y / v.w;
+        v.z = v.z / v.w;
+
+        min = glm::min(glm::vec3(v.x, v.y, v.z), min);
+        max = glm::max(glm::vec3(v.x, v.y, v.z), max);
+    }
+
+    // Check if the clip space box is within the view
+    if (min.z > 1.0f || max.z < 0.0f || min.x > 1.0f || max.x < -1.0f || min.y > 1.0f || max.y < -1.0f)
+    {
+        return false;
+    }
+
+    return true;
+}
+
 VulkanEngine& VulkanEngine::Get() { return *loadedEngine; }
 
 void VulkanEngine::init()
@@ -629,10 +671,14 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
     auto start = std::chrono::system_clock::now();
 
-    std::vector<uint32_t> opaqueDraws(_mainDrawContext.opaqueSurfaces.size());
+    std::vector<uint32_t> opaqueDraws;
+    opaqueDraws.reserve(_mainDrawContext.opaqueSurfaces.size());
     for (uint32_t i = 0; i < _mainDrawContext.opaqueSurfaces.size(); i++)
     {
-        opaqueDraws[i] = i;
+        if (is_visible(_mainDrawContext.opaqueSurfaces[i], _sceneData.viewProj))
+        {
+            opaqueDraws.push_back(i);
+        }
     }
 
     // Sort opaque surfaces by material. This will minimize the number of descriptor set
@@ -1490,7 +1536,7 @@ void MeshNode::draw(const glm::mat4& topMatrix, DrawContext& ctx)
         renderObject.firstIndex = surface.startIndex;
         renderObject.indexBuffer = mesh->meshBuffers.indexBuffer.buffer;
         renderObject.material = &surface.material->data;
-
+        renderObject.bounds = surface.bounds;
         renderObject.transform = nodeMatrix;
         renderObject.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
 

@@ -371,7 +371,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(VulkanEngine* engine, std::
             newSurface.startIndex = (uint32_t) indices.size();
             newSurface.count = (uint32_t) gltf.accessors[p.indicesAccessor.value()].count;
 
-            size_t initial_vtx = vertices.size();
+            size_t initialVertex = vertices.size();
 
             // load indexes
             {
@@ -381,7 +381,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(VulkanEngine* engine, std::
                 fastgltf::iterateAccessor<std::uint32_t>(gltf, indexaccessor,
                                                          [&](std::uint32_t idx)
                                                          {
-                                                             indices.push_back(idx + initial_vtx);
+                                                             indices.push_back(idx + initialVertex);
                                                          });
             }
 
@@ -399,7 +399,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(VulkanEngine* engine, std::
                                                                   newvtx.color = glm::vec4{1.f};
                                                                   newvtx.uv_x = 0;
                                                                   newvtx.uv_y = 0;
-                                                                  vertices[initial_vtx + index] = newvtx;
+                                                                  vertices[initialVertex + index] = newvtx;
                                                               });
             }
 
@@ -410,7 +410,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(VulkanEngine* engine, std::
                 fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, gltf.accessors[(*normals).second],
                                                               [&](glm::vec3 v, size_t index)
                                                               {
-                                                                  vertices[initial_vtx + index].normal = v;
+                                                                  vertices[initialVertex + index].normal = v;
                                                               });
             }
 
@@ -421,8 +421,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(VulkanEngine* engine, std::
                 fastgltf::iterateAccessorWithIndex<glm::vec2>(gltf, gltf.accessors[(*uv).second],
                                                               [&](glm::vec2 v, size_t index)
                                                               {
-                                                                  vertices[initial_vtx + index].uv_x = v.x;
-                                                                  vertices[initial_vtx + index].uv_y = v.y;
+                                                                  vertices[initialVertex + index].uv_x = v.x;
+                                                                  vertices[initialVertex + index].uv_y = v.y;
                                                               });
             }
 
@@ -433,7 +433,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(VulkanEngine* engine, std::
                 fastgltf::iterateAccessorWithIndex<glm::vec4>(gltf, gltf.accessors[(*colors).second],
                                                               [&](glm::vec4 v, size_t index)
                                                               {
-                                                                  vertices[initial_vtx + index].color = v;
+                                                                  vertices[initialVertex + index].color = v;
                                                               });
             }
 
@@ -445,6 +445,19 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(VulkanEngine* engine, std::
             {
                 newSurface.material = materials[0];
             }
+
+            glm::vec3 minPos = vertices[initialVertex].position;
+            glm::vec3 maxPos = vertices[initialVertex].position;
+            // Iterate through vertices of this surface and find min/max bounds
+            for (int i = initialVertex; i < vertices.size(); i++)
+            {
+                minPos = glm::min(minPos, vertices[i].position);
+                maxPos = glm::max(maxPos, vertices[i].position);
+            }
+
+            newSurface.bounds.origin = (maxPos + minPos) / 2.0f;
+            newSurface.bounds.extents = (maxPos - minPos) / 2.0f;
+            newSurface.bounds.sphereRadius = glm::length(newSurface.bounds.extents);
 
             newmesh->surfaces.push_back(newSurface);
         }
