@@ -23,14 +23,9 @@
 
 auto COMP_SHADER_PATH_GRADIENT = "gradient_color.comp.spv";
 auto COMP_SHADER_PATH_SKY = "sky.comp.spv";
-auto FRAG_SHADER_TRIANGLE = "colored_triangle.frag.spv";
-auto FRAG_SHADER_TEXTURE = "tex_image.frag.spv";
 auto FRAG_SHADER_MESH = "mesh.frag.spv";
-auto VERT_SHADER_TRIANGLE = "colored_triangle.vert.spv";
-auto VERT_SHADER_TRIANGLE_MESH = "colored_triangle_mesh.vert.spv";
 auto VERT_SHADER_MESH = "mesh.vert.spv";
 
-auto MESH_BASIC = "Assets/basicmesh.glb";
 auto SCENE_FILE = "Assets/structure.glb";
 
 auto SCENE_NAME = "scene";
@@ -118,7 +113,7 @@ void VulkanEngine::init()
     _mainCamera.velocity = glm::vec3(0);
     _mainCamera.position = glm::vec3(30.f, -00.f, -085.f);
     _mainCamera.pitch = 0;
-    _mainCamera.yaw = 0;
+    _mainCamera.yaw = -2.8;
 
     // everything went fine
     _isInitialized = true;
@@ -958,8 +953,8 @@ void VulkanEngine::init_background_pipelines()
     gradient.name = "gradient";
     gradient.data = {};
     // Default colors
-    gradient.data.data1 = glm::vec4(1, 0, 0, 1);
-    gradient.data.data2 = glm::vec4(0, 0, 1, 1);
+    gradient.data.data1 = glm::vec4(0, 0, 0, 1);
+    gradient.data.data2 = glm::vec4(0.15, 0.15, 0.15, 1);
 
     VK_CHECK(vkCreateComputePipelines(_device,
                                       VK_NULL_HANDLE,
