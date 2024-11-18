@@ -3,14 +3,11 @@ cmake_minimum_required(VERSION 3.28)
 file(TO_CMAKE_PATH $ENV{VCPKG_ROOT} vcpkg_path)
 set(CMAKE_TOOLCHAIN_FILE "${vcpkg_path}/scripts/buildsystems/vcpkg.cmake")
 
-project(vulkan_guide)
+project(VulkanPlayground)
 
 set(CMAKE_CXX_STANDARD 20)
 
 add_subdirectory(src)
-
-# Uncomment following definition to disable validation layers
-#add_definitions(-DVALIDATION_OFF)
 
 find_package(Vulkan REQUIRED)
 find_package(SDL2 CONFIG REQUIRED)
