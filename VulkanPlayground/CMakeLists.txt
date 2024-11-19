@@ -37,6 +37,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 
 set(build_out_dir "$<TARGET_FILE_DIR:${PROJECT_NAME}>")
 set(shader_src_dir "${CMAKE_SOURCE_DIR}/shaders")
+set(shader_out_dir "${PROJECT_SOURCE_DIR}/shaders/compiled/")
 ## find all the shader files under the shaders folder
 file(GLOB_RECURSE GLSL_SOURCE_FILES
         "${shader_src_dir}/*.frag"
@@ -53,29 +54,19 @@ endif()
 foreach(GLSL ${GLSL_SOURCE_FILES})
     message(STATUS "BUILDING SHADER")
     get_filename_component(FILE_NAME ${GLSL} NAME)
-    set(SPIRV "${PROJECT_SOURCE_DIR}/shaders/${FILE_NAME}.spv")
+    set(SPIRV "${PROJECT_SOURCE_DIR}/shaders/compiled/${FILE_NAME}.spv")
     message(STATUS ${GLSL})
     ##execute glslang command to compile that specific shader
     add_custom_command(
             OUTPUT ${SPIRV}
-            COMMAND ${shader_compiler_exe} ${GLSL} -o "${build_out_dir}/${FILE_NAME}.spv"
+            COMMAND ${shader_compiler_exe} ${GLSL} -o "${SPIRV}"
             DEPENDS ${GLSL})
     list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 endforeach(GLSL)
 
-add_custom_target(CompileShaders ALL
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${build_out_dir}
+add_custom_target(
+        CompileShaders ALL
         DEPENDS ${SPIRV_BINARY_FILES}
 )
 
-add_custom_target(ClearAssets ALL
-        COMMAND ${CMAKE_COMMAND} -E rm -rf
-        ${build_out_dir}/Assets/)
-
-add_custom_target(CopyAssets ALL
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/Assets/ ${build_out_dir}/Assets/)
-
-add_dependencies(${PROJECT_NAME} CopyAssets)
-add_dependencies(CopyAssets ClearAssets)
-add_dependencies(ClearAssets CompileShaders)
+add_dependencies(${PROJECT_NAME} CompileShaders)

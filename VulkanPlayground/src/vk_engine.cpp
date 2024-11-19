@@ -21,10 +21,10 @@
 #include "vk_images.h"
 #include "vk_pipelines.h"
 
-auto COMP_SHADER_PATH_GRADIENT = "gradient_color.comp.spv";
-auto COMP_SHADER_PATH_SKY = "sky.comp.spv";
-auto FRAG_SHADER_MESH = "mesh.frag.spv";
-auto VERT_SHADER_MESH = "mesh.vert.spv";
+auto COMP_SHADER_PATH_GRADIENT = "shaders/compiled/gradient_color.comp.spv";
+auto COMP_SHADER_PATH_SKY = "shaders/compiled/sky.comp.spv";
+auto FRAG_SHADER_MESH = "shaders/compiled/mesh.frag.spv";
+auto VERT_SHADER_MESH = "shaders/compiled/mesh.vert.spv";
 
 auto SCENE_FILE = "Assets/structure.glb";
 

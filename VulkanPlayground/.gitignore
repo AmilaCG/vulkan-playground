@@ -4,3 +4,5 @@
 /out/
 /.vs/
 /build/
+/shaders/compiled/
+imgui.ini
