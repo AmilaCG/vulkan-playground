@@ -186,14 +186,11 @@ void VulkanEngine::draw()
 
     VkCommandBuffer cmd = currentFrame._mainCommandBuffer;
 
-    // Now that we are sure that the commands finished executing, we can safely reset
-    // the command buffer to begin recording again
-    VK_CHECK(vkResetCommandBuffer(cmd, 0));
-
     // Begin the command buffer recording. We will be using this command buffer exactly once.
     VkCommandBufferBeginInfo cmdBeginInfo =
         vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT /* Optional flag */);
 
+    // Implicitly reset the command buffer to initial state as per VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
     VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
     _drawExtent.width = std::min(_drawImage.imageExtent.width, _drawImage.imageExtent.width) * _renderScale;
