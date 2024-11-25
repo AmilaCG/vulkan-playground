@@ -34,7 +34,7 @@ struct DrawContext;
 // Base class for a renderable dynamic object
 class IRenderable
 {
-    virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx) = 0;
+    virtual void prepare_draw(const glm::mat4& topMatrix, DrawContext& ctx) = 0;
 };
 
 struct Node : public IRenderable
@@ -55,11 +55,11 @@ struct Node : public IRenderable
         }
     }
 
-    virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx)
+    virtual void prepare_draw(const glm::mat4& topMatrix, DrawContext& ctx)
     {
         for (auto& child : children)
         {
-            child->draw(topMatrix, ctx);
+            child->prepare_draw(topMatrix, ctx);
         }
     }
 };

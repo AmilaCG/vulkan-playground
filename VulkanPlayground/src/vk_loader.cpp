@@ -45,11 +45,11 @@ static VkSamplerMipmapMode extract_mipmap_mode(const fastgltf::Filter filter)
     }
 }
 
-void LoadedGLTF::draw(const glm::mat4& topMatrix, DrawContext& ctx)
+void LoadedGLTF::prepare_draw(const glm::mat4& topMatrix, DrawContext& ctx)
 {
     for (auto& node : topNodes)
     {
-        node->draw(topMatrix, ctx);
+        node->prepare_draw(topMatrix, ctx);
     }
 }
 

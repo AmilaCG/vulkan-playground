@@ -40,7 +40,7 @@ struct LoadedGLTF : public IRenderable
 {
     ~LoadedGLTF() { clearAll(); };
 
-    virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx);
+    virtual void prepare_draw(const glm::mat4& topMatrix, DrawContext& ctx);
 
 private:
     void clearAll();

@@ -104,7 +104,7 @@ struct GLTFMetallicRoughness
 
 struct MeshNode : public Node
 {
-    void draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
+    void prepare_draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
 
     std::shared_ptr<MeshAsset> mesh;
 };

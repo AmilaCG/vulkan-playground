@@ -1401,7 +1401,7 @@ void VulkanEngine::update_scene()
     _sceneData.proj[1][1] *= -1;
     _sceneData.viewProj = _sceneData.proj * _sceneData.view;
 
-    _loadedScenes[SCENE_NAME]->draw(glm::mat4{1.0f}, _mainDrawContext);
+    _loadedScenes[SCENE_NAME]->prepare_draw(glm::mat4{1.0f}, _mainDrawContext);
 
     auto end = std::chrono::system_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -1525,7 +1525,7 @@ MaterialInstance GLTFMetallicRoughness::write_material(VkDevice device, Material
     return matData;
 }
 
-void MeshNode::draw(const glm::mat4& topMatrix, DrawContext& ctx)
+void MeshNode::prepare_draw(const glm::mat4& topMatrix, DrawContext& ctx)
 {
     glm::mat4 nodeMatrix = topMatrix * worldTransform;
 
@@ -1551,5 +1551,5 @@ void MeshNode::draw(const glm::mat4& topMatrix, DrawContext& ctx)
     }
 
     // Recurse down
-    Node::draw(topMatrix, ctx);
+    Node::prepare_draw(topMatrix, ctx);
 }
