@@ -834,13 +834,13 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
 void VulkanEngine::init_descriptors()
 {
-    std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes = {
+    std::vector<DescriptorAllocatorGrowable::PoolSize> poolSizes = {
         {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1},
         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}
     };
 
     // Create a descriptor pool that will hold 10 sets with 1 image each
-    _globalDescriptorAllocator.init(_device, 10, sizes);
+    _globalDescriptorAllocator.init(_device, 10, poolSizes);
 
     DescriptorLayoutBuilder builderStorageImg{};
     // Create a layout with a single VK_DESCRIPTOR_TYPE_STORAGE_IMAGE binding at binding 0
@@ -879,7 +879,7 @@ void VulkanEngine::init_descriptors()
     for (FrameData& frame : _frames)
     {
         // Create a descriptor pool
-        std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> frameSizes = {
+        std::vector<DescriptorAllocatorGrowable::PoolSize> frameSizes = {
             {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3},
             {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3},
             {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
