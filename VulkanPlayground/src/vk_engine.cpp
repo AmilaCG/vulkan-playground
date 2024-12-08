@@ -26,7 +26,7 @@ auto COMP_SHADER_PATH_SKY = "shaders/compiled/sky.comp.spv";
 auto FRAG_SHADER_MESH = "shaders/compiled/mesh.frag.spv";
 auto VERT_SHADER_MESH = "shaders/compiled/mesh.vert.spv";
 
-auto SCENE_FILE = "Assets/structure.glb";
+auto SCENE_FILE = "Assets/bistro.glb";
 
 auto SCENE_NAME = "scene";
 
